@@ -1,0 +1,5 @@
+# F1 2012 ReXGlue runtime configuration
+gpu_plugin = "xenos"
+render_target_path_vulkan = ""
+vulkan_async_skip_incomplete_frames = true
+vsync = true

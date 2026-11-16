@@ -1,0 +1,57 @@
+name: Android ARM64
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      xex_url:
+        description: 'Optional direct URL to default.xex (F1 2012 Xbox 360, 434D0847)'
+        required: false
+        default: ''
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch default.xex if xex_url provided
+        if: ${{ github.event.inputs.xex_url != '' }}
+        run: |
+          mkdir -p assets/game_root
+          curl -fSL "${{ github.event.inputs.xex_url }}" -o assets/game_root/default.xex
+          ls -lh assets/game_root/default.xex
+
+      - name: Run ReXGlue codegen (if default.xex present)
+        run: |
+          if [ -f assets/game_root/default.xex ]; then
+            sudo apt-get update && sudo apt-get install -y ninja-build clang lld
+            cmake -S sdk -B build-host -G Ninja -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+              -DREXGLUE_BUILD_XENOS=OFF -DREXGLUE_ENABLE_TRACY=OFF
+            cmake --build build-host --target rexglue -j"$(nproc)"
+            ./build-host/bin/rexglue codegen app/f1_2012_manifest.toml
+            rm -rf build-host
+          else
+            echo "assets/game_root/default.xex not found; building Android shell + ReXGlue runtime with stub PPCImageConfig."
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358' 'cmake;3.30.5'
+
+      - name: Build ARM64 debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f1-2012-android-arm64-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
