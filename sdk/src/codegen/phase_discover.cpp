@@ -245,6 +245,30 @@ void discoverAllFunctions(CodegenContext& ctx) {
     REXCODEGEN_TRACE("Analyze: VTable scan found {} vtables, {} new functions", vtables.size(),
                      newFunctions);
 
+    // Fallback raw pointer scan in .rdata / .data for vtables without RTTI and callback tables
+    size_t rawPtrFunctions = 0;
+    for (const auto& sec : binary.sections()) {
+      if (sec.executable || !sec.data || (sec.name != ".rdata" && sec.name != ".data"))
+        continue;
+      for (uint32_t off = 0; off + 4 <= sec.size; off += 4) {
+        uint32_t ptr = rex::memory::load_and_swap<uint32_t>(sec.data + off);
+        if ((ptr & 3) != 0 || binary.isInImportExportRange(ptr))
+          continue;
+        const auto* targetSec = binary.findSection(ptr);
+        if (!targetSec || !targetSec->executable || !targetSec->data)
+          continue;
+        if (graph.isEntryPoint(ptr) || graph.getFunctionContaining(ptr) != nullptr)
+          continue;
+        uint32_t insn = rex::memory::load_and_swap<uint32_t>(targetSec->translate(ptr));
+        if (insn == 0 || insn == 0xFFFFFFFFu)
+          continue;
+        graph.addFunction(ptr, 4, FunctionAuthority::VTABLE, true);
+        rawPtrFunctions++;
+      }
+    }
+    REXCODEGEN_INFO("Analyze: Raw pointer scan in .rdata/.data found {} new functions", rawPtrFunctions);
+    newFunctions += rawPtrFunctions;
+
     // Continue discovery for vtable functions
     if (newFunctions > 0) {
       size_t vtableIteration = 0;
