@@ -35,7 +35,7 @@ jobs:
               -DCMAKE_C_FLAGS="-march=x86-64-v3" -DCMAKE_CXX_FLAGS="-march=x86-64-v3" \
               -DREXGLUE_ENABLE_TRACY=OFF
             cmake --build build-host --target rexglue -j"$(nproc)"
-            ./sdk/out/linux-amd64/rexglue codegen app/f1_2012_manifest.toml
+            ./sdk/out/linux-amd64/rexglue codegen --force app/f1_2012_manifest.toml
             rm -rf build-host sdk/out
             ls -lh app/src/generated/default | head -n 30
           else

@@ -1,0 +1,7 @@
+# F1 2012 (Xbox 360, 434D0847) - ReXGlue analysis overrides
+# Unresolved tail-call targets discovered during codegen validation
+
+[functions."0x82D83EA0"]
+[functions."0x822C2EB0"]
+[functions."0x822C2EC0"]
+[functions."0x82778660"]
