@@ -1,0 +1,100 @@
+name: Fetch ISO & ReXGlue Codegen
+
+on:
+  workflow_dispatch:
+    inputs:
+      magnet_url:
+        description: 'Magnet URI for F1 2012 Xbox 360 ISO'
+        required: true
+
+jobs:
+  recomp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check free disk space and install aria2 + build tools
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          df -h
+          sudo apt-get update
+          sudo apt-get install -y aria2 ninja-build clang lld cmake git
+
+      - name: Download ISO via aria2c (with 10m timeout)
+        run: |
+          mkdir -p /tmp/dl
+          timeout 600 aria2c \
+            --dir=/tmp/dl \
+            --seed-time=0 \
+            --bt-enable-lpd=true \
+            --enable-dht=true \
+            --bt-tracker="udp://tracker.opentrackr.org:1337/announce,udp://open.stealth.si:80/announce,udp://tracker.torrent.eu.org:451/announce,udp://bt.rutor.org:2710" \
+            --summary-interval=15 \
+            "${{ github.event.inputs.magnet_url }}"
+          find /tmp/dl -maxdepth 3 -type f -ls
+
+      - name: Extract default.xex via extract-xiso
+        run: |
+          ISO_PATH=$(find /tmp/dl -type f -iname "*.iso" | head -n 1)
+          if [ -z "$ISO_PATH" ]; then
+            echo "No .iso found in /tmp/dl"
+            exit 1
+          fi
+          git clone --depth 1 https://github.com/XboxDev/extract-xiso.git /tmp/extract-xiso
+          cmake -S /tmp/extract-xiso -B /tmp/extract-xiso/build -G Ninja
+          cmake --build /tmp/extract-xiso/build -j"$(nproc)"
+          mkdir -p /tmp/xex_out
+          /tmp/extract-xiso/build/extract-xiso -d /tmp/xex_out -x "$ISO_PATH"
+          rm -rf /tmp/dl
+          XEX_PATH=$(find /tmp/xex_out -type f -iname "default.xex" | head -n 1)
+          if [ -z "$XEX_PATH" ]; then
+            echo "default.xex not found inside ISO!"
+            find /tmp/xex_out -maxdepth 2
+            exit 1
+          fi
+          mkdir -p assets/game_root
+          cp "$XEX_PATH" assets/game_root/default.xex
+          sha256sum assets/game_root/default.xex
+          ls -lh assets/game_root/default.xex
+          rm -rf /tmp/xex_out /tmp/extract-xiso
+
+      - name: Fetch ReXGlue SDK thirdparty & run codegen
+        run: |
+          python3 tools/fetch_thirdparty.py
+          cmake -S sdk -B build-host -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DREXGLUE_BUILD_XENOS=OFF -DREXGLUE_ENABLE_TRACY=OFF
+          cmake --build build-host --target rexglue -j"$(nproc)"
+          ./build-host/bin/rexglue codegen app/f1_2012_manifest.toml
+          rm -rf build-host
+          ls -lh app/src/generated/default | head -n 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f1-2012-codegen-and-xex
+          path: |
+            assets/game_root/default.xex
+            app/src/generated/default/
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK components
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358' 'cmake;3.30.5'
+
+      - name: Build full recompiled ARM64 debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f1-2012-android-arm64-recompiled-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
