@@ -87,6 +87,8 @@ def main():
                 if name == '.git':
                     continue
                 src = os.path.join(dirpath, name)
+                if os.path.islink(src) and not os.path.exists(src):
+                    continue
                 dst = os.path.join(target, os.path.relpath(src, source))
                 relative_path = os.path.normpath(os.path.relpath(src, source))
                 was_existing = os.path.exists(dst)
