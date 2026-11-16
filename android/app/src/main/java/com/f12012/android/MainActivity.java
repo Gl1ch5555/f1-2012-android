@@ -157,57 +157,76 @@ public final class MainActivity extends Activity {
 
     // ---- Screen --------------------------------------------------------------------------------------------
 
-    private static final int ACCENT = 0xFFFF8A00;
+    private static final int ACCENT = 0xFFE10600;
     private LinearLayout checksList;
     private LinearLayout optionsList;
     private LinearLayout shaderPanel;
     private ProgressBar shaderProgress;
     private TextView shaderText;
     private ShaderBuilder shaderBuilder;
+    private Button downloadGame;
+    private Button settingsButton;
+    private AlertDialog settingsDialog;
 
     private View buildScreen() {
         FrameLayout screen = new FrameLayout(this);
         screen.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[] {0xFF0B0F14, 0xFF1C1407, 0xFF0B0F14}));
+                new int[] {0xFF0A0C12, 0xFF151A26, 0xFF080A0E}));
+
+        View topStripe = new View(this);
+        topStripe.setBackgroundColor(ACCENT);
+        screen.addView(topStripe, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, dp(3), Gravity.TOP));
 
         LinearLayout columns = new LinearLayout(this);
         columns.setOrientation(LinearLayout.HORIZONTAL);
-        columns.setPadding(dp(28), dp(16), dp(28), dp(16));
+        columns.setPadding(dp(28), dp(20), dp(28), dp(18));
         screen.addView(columns, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        // Left: logo, game files and the two actions.
+        // Left: F1 2020 style branding + Settings trigger.
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
-        left.setGravity(Gravity.CENTER_HORIZONTAL);
-        ScrollView leftScroll = new ScrollView(this);
-        leftScroll.setFillViewport(true);
-        leftScroll.addView(left);
-        columns.addView(leftScroll, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1.1f));
+        left.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
+        columns.addView(left, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1.05f));
 
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.banner);
         logo.setAdjustViewBounds(true);
         logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        left.addView(logo, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(92)));
+        left.addView(logo, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(136)));
 
-        TextView subtitle = label("Xbox 360 · recompilado para Android", 13, 0x99FFFFFF, false);
+        TextView subtitle = label("FORMULA 1 • 2012 SEASON • EGO 2.0 • ARM64", 11, 0xAAFFFFFF, true);
         subtitle.setGravity(Gravity.CENTER);
+        subtitle.setPadding(0, dp(10), 0, dp(14));
         left.addView(subtitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        settingsButton = actionButton("НАСТРОЙКИ И ДРАЙВЕРЫ", false);
+        settingsButton.setOnClickListener(view -> openSettingsDialog());
+        left.addView(settingsButton, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(48)));
+
+        // Right: Play / Direct Download card (clean F1 2020 hub).
+        LinearLayout right = new LinearLayout(this);
+        right.setOrientation(LinearLayout.VERTICAL);
+        right.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
+        rightParams.leftMargin = dp(24);
+        columns.addView(right, rightParams);
+
         LinearLayout card = card();
-        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        cardParams.topMargin = dp(12);
-        left.addView(card, cardParams);
-        card.addView(label("ARCHIVOS DEL JUEGO", 12, ACCENT, true));
+        right.addView(card, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        card.addView(label("ДАННЫЕ ИГРЫ • 434D0847", 12, ACCENT, true));
         importStatus = label("", 13, 0xDDFFFFFF, false);
-        importStatus.setPadding(0, dp(4), 0, dp(6));
+        importStatus.setPadding(0, dp(6), 0, dp(6));
         card.addView(importStatus);
         checksList = new LinearLayout(this);
         checksList.setOrientation(LinearLayout.VERTICAL);
         card.addView(checksList);
+
         shaderPanel = new LinearLayout(this);
         shaderPanel.setOrientation(LinearLayout.VERTICAL);
         shaderPanel.setPadding(0, dp(8), 0, 0);
@@ -221,44 +240,132 @@ public final class MainActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(10)));
         card.addView(shaderPanel);
 
-        launchGame = actionButton("JUGAR", true);
+        launchGame = actionButton("ИГРАТЬ", true);
         launchGame.setVisibility(View.GONE);
         launchGame.setOnClickListener(view -> play());
         LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(62));
-        playParams.topMargin = dp(12);
-        left.addView(launchGame, playParams);
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(60));
+        playParams.topMargin = dp(14);
+        right.addView(launchGame, playParams);
 
-        selectFolder = actionButton("Elegir carpeta del juego", false);
+        downloadGame = actionButton("СКАЧАТЬ ИГРУ (GOOGLE DRIVE)", true);
+        downloadGame.setOnClickListener(view -> promptOrStartDownload());
+        LinearLayout.LayoutParams dlParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(56));
+        dlParams.topMargin = dp(14);
+        right.addView(downloadGame, dlParams);
+
+        selectFolder = actionButton("Выбрать папку с игрой", false);
         selectFolder.setOnClickListener(view -> selectGameFolder());
         LinearLayout.LayoutParams folderParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
         folderParams.topMargin = dp(10);
-        left.addView(selectFolder, folderParams);
+        right.addView(selectFolder, folderParams);
 
-        // Right: graphics options.
-        LinearLayout right = card();
-        LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
-        rightParams.leftMargin = dp(24);
-        columns.addView(right, rightParams);
-        right.addView(label("OPCIONES GRÁFICAS", 12, ACCENT, true));
-        TextView note = label("Se aplican al iniciar el juego.", 12, 0x88FFFFFF, false);
-        note.setPadding(0, dp(2), 0, dp(4));
-        right.addView(note);
-        ScrollView scroll = new ScrollView(this);
         optionsList = new LinearLayout(this);
         optionsList.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(optionsList);
-        right.addView(scroll, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
-        sendReport = actionButton("Enviar crash o log", false);
+        sendReport = actionButton("Логи и диагностика", false);
         sendReport.setOnClickListener(view -> chooseReportDestination());
-        LinearLayout.LayoutParams reportParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
-        reportParams.topMargin = dp(8);
-        right.addView(sendReport, reportParams);
         refreshOptions();
         return screen;
+    }
+
+    private void openSettingsDialog() {
+        refreshOptions();
+        LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        container.setPadding(dp(16), dp(12), dp(16), dp(12));
+        container.setBackgroundColor(0xFF121620);
+
+        if (optionsList.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) optionsList.getParent()).removeView(optionsList);
+        }
+        if (sendReport.getParent() instanceof android.view.ViewGroup) {
+            ((android.view.ViewGroup) sendReport.getParent()).removeView(sendReport);
+        }
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.addView(optionsList);
+        container.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(240)));
+        LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(44));
+        rp.topMargin = dp(10);
+        container.addView(sendReport, rp);
+
+        settingsDialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Настройки F1 2012")
+                .setView(container)
+                .setPositiveButton("Закрыть", null)
+                .create();
+        settingsDialog.show();
+    }
+
+    private void promptOrStartDownload() {
+        if (!hasStorageAccess()) {
+            prepareSharedGameFolder();
+            return;
+        }
+        if (!GameDownloader.DEFAULT_GAME_URL.isEmpty()) {
+            startDownload(GameDownloader.DEFAULT_GAME_URL);
+            return;
+        }
+        String saved = getPreferences(MODE_PRIVATE).getString("last_download_url", "");
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setHint("https://drive.google.com/file/d/... или прямая ссылка (.zip)");
+        input.setText(saved);
+        input.setTextColor(Color.WHITE);
+        input.setHintTextColor(0x88FFFFFF);
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Скачать файлы F1 2012")
+                .setMessage("Вставь ссылку на Google Диск или прямой ZIP-архив с игрой (должен содержать default.xex):")
+                .setView(input)
+                .setPositiveButton("Скачать", (d, w) -> {
+                    String url = input.getText().toString().trim();
+                    if (!url.isEmpty()) {
+                        getPreferences(MODE_PRIVATE).edit().putString("last_download_url", url).apply();
+                        startDownload(url);
+                    }
+                })
+                .setNegativeButton("Отмена", null)
+                .show();
+    }
+
+    private void startDownload(String url) {
+        downloadGame.setEnabled(false);
+        selectFolder.setEnabled(false);
+        launchGame.setVisibility(View.GONE);
+        shaderPanel.setVisibility(View.VISIBLE);
+        shaderProgress.setProgress(0);
+        shaderText.setText("Подготовка к скачиванию...");
+        importer.execute(() -> GameDownloader.downloadAndInstall(url, sharedGameRoot(), new GameDownloader.Listener() {
+            @Override
+            public void onProgress(String statusText, int percent) {
+                mainHandler.post(() -> {
+                    shaderText.setText(statusText);
+                    shaderProgress.setProgress(Math.max(0, Math.min(1000, percent * 10)));
+                });
+            }
+
+            @Override
+            public void onSuccess() {
+                mainHandler.post(() -> {
+                    shaderPanel.setVisibility(View.GONE);
+                    downloadGame.setEnabled(true);
+                    showSharedGameFolder("Файлы игры успешно скачаны!");
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                mainHandler.post(() -> {
+                    shaderPanel.setVisibility(View.GONE);
+                    downloadGame.setEnabled(true);
+                    selectFolder.setEnabled(true);
+                    reportError("Ошибка загрузки: " + message);
+                });
+            }
+        }));
     }
 
     // ---- Shader library ------------------------------------------------------------------------------------
@@ -1170,16 +1277,18 @@ public final class MainActivity extends Activity {
     private void showSharedGameFolder(String notice) {
         File gameRoot = sharedGameRoot();
         selectFolder.setEnabled(true);
+        if (downloadGame != null) downloadGame.setEnabled(true);
         showChecks(gameRoot);
         if (isValidGameFolder(gameRoot)) {
-            setImportStatus((notice == null ? "" : notice + "\n") + "Memoria interna/" + GAME_FOLDER_NAME);
+            setImportStatus((notice == null ? "" : notice + "\n") + "Папка игры: " + GAME_FOLDER_NAME);
             launchGame.setVisibility(View.VISIBLE);
-            selectFolder.setText("Cambiar carpeta del juego");
+            if (downloadGame != null) downloadGame.setVisibility(View.GONE);
+            selectFolder.setText("Сменить папку игры");
         } else {
-            setImportStatus("Elige la carpeta extraída del juego (con default.xex, NFS y Movies). Se copiará a " +
-                    "Memoria interna/" + GAME_FOLDER_NAME + ".");
+            setImportStatus("Скачай архив игры с Google Диска или выбери распакованную папку с default.xex.");
             launchGame.setVisibility(View.GONE);
-            selectFolder.setText("Elegir carpeta del juego");
+            if (downloadGame != null) downloadGame.setVisibility(View.VISIBLE);
+            selectFolder.setText("Выбрать папку с игрой");
         }
     }
 

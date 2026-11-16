@@ -273,6 +273,10 @@ public final class GameActivity extends SDLActivity
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
+            runOnUiThread(this::showSettings);
+            return true;
+        }
         if (isGamepad(event.getDevice())) {
             controls.onGamepadActive();
         }
@@ -352,8 +356,8 @@ public final class GameActivity extends SDLActivity
         row.addView(toolButton("Mostrar / ocultar", v -> controls.toggleSelectedVisible()));
         row.addView(toolButton("Ajustes", v -> showSettings()));
         row.addView(toolButton("Restablecer", v -> confirmReset()));
-        Button done = toolButton("Listo", v -> controls.setEditing(false));
-        ((GradientDrawable) done.getBackground()).setColor(0xFFE07B00);
+        Button done = toolButton("Готово", v -> controls.setEditing(false));
+        ((GradientDrawable) done.getBackground()).setColor(0xFFE10600);
         row.addView(done);
         bar.addView(row);
         return bar;
