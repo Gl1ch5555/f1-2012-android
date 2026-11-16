@@ -50,7 +50,9 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_DRIVER_ZIP = 45;
     private static final int REQUEST_DRIVER_PROBE = 46;
     private static final int REQUEST_ARCHIVE_FILE = 47;
+    private static final int REQUEST_NOTIF_PERM = 48;
     private boolean playAfterProbe;
+    private String pendingDownloadUrl;
     private boolean launcherResumed;
     private boolean checkingUpdates;
     private ReleaseUpdates.Result pendingUpdate;
@@ -105,6 +107,7 @@ public final class MainActivity extends Activity {
         if (checksList != null && hasStorageAccess()) {
             showChecks(sharedGameRoot());
         }
+        attachDownloadService();
         if (pendingUpdate != null) {
             ReleaseUpdates.Result result = pendingUpdate;
             pendingUpdate = null;
@@ -114,6 +117,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onPause() {
         launcherResumed = false;
+        DownloadService.setListener(null);
         super.onPause();
     }
 
@@ -165,6 +169,7 @@ public final class MainActivity extends Activity {
     private LinearLayout shaderPanel;
     private ProgressBar shaderProgress;
     private TextView shaderText;
+    private Button cancelDownload;
     private ShaderBuilder shaderBuilder;
     private Button downloadGame;
     private Button settingsButton;
@@ -240,6 +245,13 @@ public final class MainActivity extends Activity {
         shaderProgress.setProgressTintList(android.content.res.ColorStateList.valueOf(ACCENT));
         shaderPanel.addView(shaderProgress, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(10)));
+        cancelDownload = actionButton("Отменить загрузку", false);
+        cancelDownload.setVisibility(View.GONE);
+        cancelDownload.setOnClickListener(view -> DownloadService.cancel(this));
+        LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(40));
+        cancelParams.topMargin = dp(8);
+        shaderPanel.addView(cancelDownload, cancelParams);
         card.addView(shaderPanel);
 
         launchGame = actionButton("ИГРАТЬ", true);
@@ -250,7 +262,11 @@ public final class MainActivity extends Activity {
         playParams.topMargin = dp(14);
         right.addView(launchGame, playParams);
 
-        downloadGame = actionButton("СКАЧАТЬ ИГРУ (GOOGLE DRIVE)", true);
+        downloadGame = actionButton(
+                GameDownloader.hasResumableDownload(sharedGameRoot())
+                        ? "ПРОДОЛЖИТЬ ЗАГРУЗКУ (GOOGLE DRIVE)"
+                        : "СКАЧАТЬ ИГРУ (GOOGLE DRIVE)",
+                true);
         downloadGame.setOnClickListener(view -> promptOrStartDownload());
         LinearLayout.LayoutParams dlParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(56));
@@ -385,16 +401,48 @@ public final class MainActivity extends Activity {
     }
 
     private void startDownload(String url) {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            pendingDownloadUrl = url;
+            requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, REQUEST_NOTIF_PERM);
+            return;
+        }
+        launchDownloadService(url);
+    }
+
+    private void launchDownloadService(String url) {
         downloadGame.setEnabled(false);
         selectFolder.setEnabled(false);
         launchGame.setVisibility(View.GONE);
         shaderPanel.setVisibility(View.VISIBLE);
+        cancelDownload.setVisibility(View.VISIBLE);
         shaderProgress.setProgress(0);
         shaderText.setText("Подготовка к скачиванию...");
-        importer.execute(() -> GameDownloader.downloadAndInstall(url, sharedGameRoot(), new GameDownloader.Listener() {
+        attachDownloadService();
+        DownloadService.start(this, url, sharedGameRoot());
+    }
+
+    private void attachDownloadService() {
+        if (downloadGame == null) return;
+        if (DownloadService.isRunning()) {
+            downloadGame.setEnabled(false);
+            selectFolder.setEnabled(false);
+            launchGame.setVisibility(View.GONE);
+            shaderPanel.setVisibility(View.VISIBLE);
+            cancelDownload.setVisibility(View.VISIBLE);
+            shaderText.setText(DownloadService.getLastStatus());
+            shaderProgress.setProgress(Math.max(0, Math.min(1000, DownloadService.getLastPercent() * 10)));
+        }
+        DownloadService.setListener(new DownloadService.Listener() {
             @Override
             public void onProgress(String statusText, int percent) {
                 mainHandler.post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    downloadGame.setEnabled(false);
+                    selectFolder.setEnabled(false);
+                    launchGame.setVisibility(View.GONE);
+                    shaderPanel.setVisibility(View.VISIBLE);
+                    cancelDownload.setVisibility(View.VISIBLE);
                     shaderText.setText(statusText);
                     shaderProgress.setProgress(Math.max(0, Math.min(1000, percent * 10)));
                 });
@@ -403,8 +451,11 @@ public final class MainActivity extends Activity {
             @Override
             public void onSuccess() {
                 mainHandler.post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     shaderPanel.setVisibility(View.GONE);
+                    cancelDownload.setVisibility(View.GONE);
                     downloadGame.setEnabled(true);
+                    downloadGame.setText("СКАЧАТЬ ИГРУ (GOOGLE DRIVE)");
                     showSharedGameFolder("Файлы игры успешно скачаны!");
                 });
             }
@@ -412,13 +463,31 @@ public final class MainActivity extends Activity {
             @Override
             public void onError(String message) {
                 mainHandler.post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     shaderPanel.setVisibility(View.GONE);
+                    cancelDownload.setVisibility(View.GONE);
                     downloadGame.setEnabled(true);
+                    downloadGame.setText(GameDownloader.hasResumableDownload(sharedGameRoot())
+                            ? "ПРОДОЛЖИТЬ ЗАГРУЗКУ (GOOGLE DRIVE)"
+                            : "СКАЧАТЬ ИГРУ (GOOGLE DRIVE)");
                     selectFolder.setEnabled(true);
                     reportError("Ошибка загрузки: " + message);
                 });
             }
-        }));
+
+            @Override
+            public void onCancelled() {
+                mainHandler.post(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    shaderPanel.setVisibility(View.GONE);
+                    cancelDownload.setVisibility(View.GONE);
+                    downloadGame.setEnabled(true);
+                    downloadGame.setText("СКАЧАТЬ ИГРУ (GOOGLE DRIVE)");
+                    selectFolder.setEnabled(true);
+                    setImportStatus("Загрузка отменена.");
+                });
+            }
+        });
     }
 
     // ---- Shader library ------------------------------------------------------------------------------------
@@ -1126,6 +1195,12 @@ public final class MainActivity extends Activity {
             else {
                 selectFolder.setEnabled(true);
                 setImportStatus("Activa el permiso de almacenamiento para usar Memoria interna/" + GAME_FOLDER_NAME + ".");
+            }
+        } else if (requestCode == REQUEST_NOTIF_PERM) {
+            if (pendingDownloadUrl != null) {
+                String url = pendingDownloadUrl;
+                pendingDownloadUrl = null;
+                launchDownloadService(url);
             }
         }
     }
