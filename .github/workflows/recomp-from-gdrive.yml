@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir -p /tmp/dl
           python3 -m pip install --quiet gdown
-          gdown --fuzzy "https://drive.google.com/file/d/${{ github.event.inputs.gdrive_id }}/view" -O /tmp/dl/game.archive
+          gdown "${{ github.event.inputs.gdrive_id }}" -O /tmp/dl/game.archive
           ls -lh /tmp/dl/game.archive
           file /tmp/dl/game.archive
 
