@@ -49,6 +49,7 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_SAVE_REPORT = 44;
     private static final int REQUEST_DRIVER_ZIP = 45;
     private static final int REQUEST_DRIVER_PROBE = 46;
+    private static final int REQUEST_ARCHIVE_FILE = 47;
     private boolean playAfterProbe;
     private boolean launcherResumed;
     private boolean checkingUpdates;
@@ -262,6 +263,13 @@ public final class MainActivity extends Activity {
         folderParams.topMargin = dp(10);
         right.addView(selectFolder, folderParams);
 
+        Button selectArchive = actionButton("Выбрать архив / ISO с телефона", false);
+        selectArchive.setOnClickListener(view -> selectLocalArchive());
+        LinearLayout.LayoutParams archiveParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
+        archiveParams.topMargin = dp(8);
+        right.addView(selectArchive, archiveParams);
+
         optionsList = new LinearLayout(this);
         optionsList.setOrientation(LinearLayout.VERTICAL);
         sendReport = actionButton("Логи и диагностика", false);
@@ -329,6 +337,50 @@ public final class MainActivity extends Activity {
                 })
                 .setNegativeButton("Отмена", null)
                 .show();
+    }
+
+    private void selectLocalArchive() {
+        Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT)
+                .setType("*/*")
+                .addCategory(Intent.CATEGORY_OPENABLE);
+        startActivityForResult(picker, REQUEST_ARCHIVE_FILE);
+    }
+
+    private void startLocalArchiveInstall(Uri uri) {
+        downloadGame.setEnabled(false);
+        selectFolder.setEnabled(false);
+        launchGame.setVisibility(View.GONE);
+        shaderPanel.setVisibility(View.VISIBLE);
+        shaderProgress.setProgress(0);
+        shaderText.setText("Подготовка к распаковке...");
+        importer.execute(() -> GameDownloader.installFromUri(this, uri, sharedGameRoot(), new GameDownloader.Listener() {
+            @Override
+            public void onProgress(String statusText, int percent) {
+                mainHandler.post(() -> {
+                    shaderText.setText(statusText);
+                    shaderProgress.setProgress(Math.max(0, Math.min(1000, percent * 10)));
+                });
+            }
+
+            @Override
+            public void onSuccess() {
+                mainHandler.post(() -> {
+                    shaderPanel.setVisibility(View.GONE);
+                    downloadGame.setEnabled(true);
+                    showSharedGameFolder("Игра успешно распакована!");
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                mainHandler.post(() -> {
+                    shaderPanel.setVisibility(View.GONE);
+                    downloadGame.setEnabled(true);
+                    selectFolder.setEnabled(true);
+                    reportError("Ошибка распаковки: " + message);
+                });
+            }
+        }));
     }
 
     private void startDownload(String url) {
@@ -1028,6 +1080,12 @@ public final class MainActivity extends Activity {
                     mainHandler.post(() -> reportError("No se pudo importar el driver: " + error.getMessage()));
                 }
             });
+            return;
+        }
+        if (requestCode == REQUEST_ARCHIVE_FILE) {
+            if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                startLocalArchiveInstall(data.getData());
+            }
             return;
         }
         if (requestCode == REQUEST_SAVE_REPORT) {
