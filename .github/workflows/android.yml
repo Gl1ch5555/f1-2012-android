@@ -33,7 +33,7 @@ jobs:
           path: |
             app/src/generated/default
             app/generated
-          key: codegen-434D0847-v4-${{ hashFiles('app/f1_2012_manifest.toml', 'app/overrides.toml') }}
+          key: codegen-434D0847-v5-${{ hashFiles('app/f1_2012_manifest.toml', 'app/overrides.toml', 'sdk/src/codegen/**') }}
 
       - name: Fetch default.xex if xex_url provided
         if: ${{ github.event.inputs.xex_url != '' }}

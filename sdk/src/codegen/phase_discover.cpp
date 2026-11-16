@@ -190,6 +190,8 @@ void discoverFunction(CodegenContext& ctx, uint32_t funcAddr,
   }
 }
 
+void functionPointerScan(CodegenContext& ctx);
+
 void discoverAllFunctions(CodegenContext& ctx) {
   REXCODEGEN_TRACE("Analyze: starting iterative discovery...");
 
@@ -245,10 +247,11 @@ void discoverAllFunctions(CodegenContext& ctx) {
     REXCODEGEN_TRACE("Analyze: VTable scan found {} vtables, {} new functions", vtables.size(),
                      newFunctions);
 
-    // Fallback raw pointer scan in .rdata / .data for vtables without RTTI and callback tables
+    // Fallback raw pointer scan across all non-executable data sections for vtables without RTTI and callback tables
     size_t rawPtrFunctions = 0;
     for (const auto& sec : binary.sections()) {
-      if (sec.executable || !sec.data || (sec.name != ".rdata" && sec.name != ".data"))
+      if (sec.executable || !sec.data || sec.name == ".pdata" || sec.name == ".reloc" ||
+          sec.name == ".rsrc")
         continue;
       for (uint32_t off = 0; off + 4 <= sec.size; off += 4) {
         uint32_t ptr = rex::memory::load_and_swap<uint32_t>(sec.data + off);
@@ -266,8 +269,12 @@ void discoverAllFunctions(CodegenContext& ctx) {
         rawPtrFunctions++;
       }
     }
-    REXCODEGEN_INFO("Analyze: Raw pointer scan in .rdata/.data found {} new functions", rawPtrFunctions);
+    REXCODEGEN_INFO("Analyze: Raw pointer scan in data sections found {} new functions", rawPtrFunctions);
     newFunctions += rawPtrFunctions;
+
+    // Scan lis+addi / lis+ori pairs loading code addresses (callbacks, thread entries, etc.)
+    functionPointerScan(ctx);
+    newFunctions += 1;  // Ensure discovery loop runs if functionPointerScan added candidates
 
     // Continue discovery for vtable functions
     if (newFunctions > 0) {
@@ -349,13 +356,15 @@ void functionPointerScan(CodegenContext& ctx) {
 
         if (!lisValid.test(ra))
           continue;
+        if (addr - lisValues[ra].second > 64)
+          continue;
 
         uint32_t hi = lisValues[ra].first;
         int16_t lo = static_cast<int16_t>(insn->D.d);
         uint32_t fullAddr = hi + lo;  // Sign-extended add
 
         // PPC instructions are 4-byte aligned
-        if (fullAddr & 0x3)
+        if ((fullAddr & 0x3) || ctx.binary().isInImportExportRange(fullAddr))
           continue;
 
         // Check if this address is in a code region
@@ -363,8 +372,19 @@ void functionPointerScan(CodegenContext& ctx) {
         if (!targetRegion)
           continue;
 
-        // Skip if already a known function
-        if (existingFunctions.contains(fullAddr))
+        // Skip if already a known function or inside an existing function
+        if (existingFunctions.contains(fullAddr) || graph.isEntryPoint(fullAddr) ||
+            graph.getFunctionContaining(fullAddr) != nullptr)
+          continue;
+
+        auto* targetInsn = decoded.get(fullAddr);
+        if (!targetInsn)
+          continue;
+        const uint8_t* targetBytes = ctx.binary().translate(fullAddr);
+        if (!targetBytes)
+          continue;
+        uint32_t rawInsn = rex::memory::load_and_swap<uint32_t>(targetBytes);
+        if (rawInsn == 0 || rawInsn == 0xFFFFFFFFu)
           continue;
 
         // Skip if it's an internal address (within same function's likely range)
@@ -389,20 +409,33 @@ void functionPointerScan(CodegenContext& ctx) {
         uint8_t ra = static_cast<uint8_t>(insn->D.RA);
         if (!lisValid.test(ra))
           continue;
+        if (addr - lisValues[ra].second > 64)
+          continue;
 
         uint32_t hi = lisValues[ra].first;
         uint16_t lo = static_cast<uint16_t>(insn->D.d);
         uint32_t fullAddr = hi | lo;  // Unsigned OR
 
         // PPC instructions are 4-byte aligned
-        if (fullAddr & 0x3)
+        if ((fullAddr & 0x3) || ctx.binary().isInImportExportRange(fullAddr))
           continue;
 
         const CodeRegion* targetRegion = decoded.regionContaining(fullAddr);
         if (!targetRegion)
           continue;
 
-        if (existingFunctions.contains(fullAddr))
+        if (existingFunctions.contains(fullAddr) || graph.isEntryPoint(fullAddr) ||
+            graph.getFunctionContaining(fullAddr) != nullptr)
+          continue;
+
+        auto* targetInsn = decoded.get(fullAddr);
+        if (!targetInsn)
+          continue;
+        const uint8_t* targetBytes = ctx.binary().translate(fullAddr);
+        if (!targetBytes)
+          continue;
+        uint32_t rawInsn = rex::memory::load_and_swap<uint32_t>(targetBytes);
+        if (rawInsn == 0 || rawInsn == 0xFFFFFFFFu)
           continue;
 
         int32_t distance = static_cast<int32_t>(fullAddr) - static_cast<int32_t>(addr);
