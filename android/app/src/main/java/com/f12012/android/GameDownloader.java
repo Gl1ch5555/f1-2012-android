@@ -24,9 +24,8 @@ import java.util.zip.ZipInputStream;
  * Direct & Google Drive downloader + ZIP extractor for F1 2012 game files.
  */
 final class GameDownloader {
-    // Set this to your public Google Drive / direct ZIP URL when ready, e.g.:
-    // "https://drive.google.com/file/d/YOUR_FILE_ID/view?usp=sharing"
-    static final String DEFAULT_GAME_URL = "https://drive.google.com/file/d/1tZUIGqBlv2vfGFb4iZ1kzcNb2Psg3O2K/view?usp=drivesdk";
+    // Put a direct .zip / Google Drive .zip URL here when ready
+    static final String DEFAULT_GAME_URL = "";
 
     interface Listener {
         void onProgress(String statusText, int percent);
@@ -67,6 +66,9 @@ final class GameDownloader {
             }
             listener.onProgress("Подключение к серверу...", 0);
             downloadFile(downloadUrl, tempZip, listener);
+            if (isSevenZip(tempZip)) {
+                throw new IOException("Скачан .7z архив. Лаунчер поддерживает .zip с распакованными файлами игры (с default.xex).");
+            }
             listener.onProgress("Распаковка файлов игры...", 100);
             deleteRecursively(staging);
             if (!staging.mkdirs()) {
@@ -97,11 +99,23 @@ final class GameDownloader {
             if (contentType != null && contentType.toLowerCase(Locale.US).contains("text/html")) {
                 String html = readSmallText(conn.getInputStream());
                 conn.disconnect();
+                if (html.contains("Too many users have viewed or downloaded") || html.contains("quota")) {
+                    throw new IOException("Превышен лимит скачиваний Google Диска (квота 24ч). Используйте другую ссылку или выберите папку вручную.");
+                }
                 String confirmUrl = extractGoogleDriveConfirmUrl(html);
                 if (confirmUrl == null) {
-                    throw new IOException("Сервер вернул HTML вместо архива (проверьте доступ к файлу на Google Диске).");
+                    throw new IOException("Google Диск вернул страницу вместо файла (проверьте доступ 'Все, у кого есть ссылка').");
                 }
                 conn = openConnection(confirmUrl, 0);
+                String ct2 = conn.getContentType();
+                if (ct2 != null && ct2.toLowerCase(Locale.US).contains("text/html")) {
+                    String html2 = readSmallText(conn.getInputStream());
+                    conn.disconnect();
+                    if (html2.contains("Too many users have viewed or downloaded") || html2.contains("quota")) {
+                        throw new IOException("Превышен лимит скачиваний Google Диска (квота 24ч).");
+                    }
+                    throw new IOException("Google Диск не отдал файл (возможно, включён лимит или закрыт доступ).");
+                }
             }
             long total = conn.getContentLengthLong();
             byte[] buf = new byte[65536];
@@ -176,7 +190,20 @@ final class GameDownloader {
             }
             return query.toString();
         }
+        Matcher uc = Pattern.compile("href=\"(/uc\\?export=download[^\"]+)\"").matcher(html);
+        if (uc.find()) {
+            return "https://drive.google.com" + uc.group(1).replace("&amp;", "&");
+        }
         return null;
+    }
+
+    private static boolean isSevenZip(File f) {
+        byte[] sig = new byte[4];
+        try (FileInputStream in = new FileInputStream(f)) {
+            return in.read(sig) == 4 && sig[0] == 0x37 && sig[1] == 0x7A && sig[2] == (byte) 0xBC && sig[3] == (byte) 0xAF;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
     private static void unzip(File zipFile, File destDir, Listener listener) throws IOException {

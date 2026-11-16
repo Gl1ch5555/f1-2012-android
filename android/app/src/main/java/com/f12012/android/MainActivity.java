@@ -643,14 +643,14 @@ public final class MainActivity extends Activity {
 
     private void refreshOptions() {
         optionsList.removeAllViews();
-        optionsList.addView(optionRow("Partidas guardadas", "Exportar, importar y respaldar", () -> launcherSaves.menu()));
-        optionsList.addView(optionRow("Perfil gráfico", profileLabel(), this::chooseProfile));
+        optionsList.addView(optionRow("Сохранения", "Экспорт, импорт и резервная копия", () -> launcherSaves.menu()));
+        optionsList.addView(optionRow("Профиль графики", profileLabel(), this::chooseProfile));
         GpuDrivers.Driver driver = GpuDrivers.selected(this);
-        optionsList.addView(optionRow("Driver Vulkan", driver == null ? "Del sistema" : driver.name,
+        optionsList.addView(optionRow("Драйвер Vulkan", driver == null ? "Системный" : driver.name,
                 this::chooseDriver));
-        optionsList.addView(optionRow("Probar driver", "Comprobar GPU y funciones Vulkan", () -> probeDriver(false)));
-        optionsList.addView(optionRow("Buscar actualizaciones",
-                checkingUpdates ? "Comprobando GitHub…" : "Versión " + ReleaseUpdates.installed(this),
+        optionsList.addView(optionRow("Тест драйвера", "Проверить GPU и функции Vulkan", () -> probeDriver(false)));
+        optionsList.addView(optionRow("Обновления",
+                checkingUpdates ? "Проверка GitHub…" : "Версия " + ReleaseUpdates.installed(this),
                 () -> checkUpdates(true)));
         for (GameOptions.Option option : GameOptions.ALL) {
             String value = GameOptions.get(this, option.key);
@@ -658,24 +658,11 @@ public final class MainActivity extends Activity {
         }
         SharedPreferences controls = getSharedPreferences("nfsmw_controls", MODE_PRIVATE);
         boolean stretch = controls.getBoolean("stretch", true);
-        optionsList.addView(optionRow("Formato de imagen",
-                stretch ? "Estirada a toda la pantalla" : "Original 16:9", () -> {
+        optionsList.addView(optionRow("Формат экрана",
+                stretch ? "На весь экран" : "Оригинал 16:9", () -> {
                     controls.edit().putBoolean("stretch", !stretch).apply();
                     refreshOptions();
                 }));
-
-        TextView lan = label("MULTIJUGADOR LAN · EXPERIMENTAL", 12, ACCENT, true);
-        lan.setPadding(0, dp(14), 0, dp(2));
-        optionsList.addView(lan);
-        optionsList.addView(optionRow("Modo LAN", LanSettings.describe(this), this::chooseLanMode));
-        String gamertag = LanSettings.gamertag(this);
-        optionsList.addView(optionRow("Gamertag", gamertag.isEmpty() ? "User (cada móvil necesita uno distinto)"
-                : gamertag, this::editGamertag));
-        if (LanSettings.MODE_JOIN.equals(LanSettings.mode(this))) {
-            String server = LanSettings.server(this);
-            optionsList.addView(optionRow("Servidor", server.isEmpty() ? "Buscar o escribir la IP" : server,
-                    this::chooseLanServer));
-        }
     }
 
     // ---- LAN multiplayer -----------------------------------------------------------------------------------
