@@ -19,7 +19,7 @@ jobs:
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/julia* /usr/local/share/chromium*
           df -h
           sudo apt-get update
-          sudo apt-get install -y p7zip-full aria2 ninja-build clang lld cmake git pkg-config libx11-xcb-dev libx11-dev libxcb1-dev
+          sudo apt-get install -y p7zip-full aria2 ninja-build clang lld cmake git pkg-config libx11-xcb-dev libx11-dev libxcb1-dev libwayland-dev
 
       - name: Download archive from Google Drive
         run: |
