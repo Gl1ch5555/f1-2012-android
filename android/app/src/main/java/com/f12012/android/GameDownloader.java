@@ -264,22 +264,23 @@ final class GameDownloader {
             if (contentType != null && contentType.toLowerCase(Locale.US).contains("text/html")) {
                 String html = readSmallText(conn.getInputStream());
                 conn.disconnect();
-                if (html.contains("Too many users have viewed or downloaded") || html.contains("quota")) {
-                    throw new IOException("Превышен лимит скачиваний Google Диска (квота 24ч). Используйте другую ссылку или выберите архив/ISO с телефона.");
-                }
                 String confirmUrl = extractGoogleDriveConfirmUrl(html);
-                if (confirmUrl == null) {
-                    throw new IOException("Google Диск вернул страницу вместо файла (проверьте доступ 'Все, у кого есть ссылка').");
-                }
-                conn = openConnection(confirmUrl, 0);
-                String ct2 = conn.getContentType();
-                if (ct2 != null && ct2.toLowerCase(Locale.US).contains("text/html")) {
-                    String html2 = readSmallText(conn.getInputStream());
-                    conn.disconnect();
-                    if (html2.contains("Too many users have viewed or downloaded") || html2.contains("quota")) {
-                        throw new IOException("Превышен лимит скачиваний Google Диска (квота 24ч).");
+                if (confirmUrl != null) {
+                    conn = openConnection(confirmUrl, 0);
+                    String ct2 = conn.getContentType();
+                    if (ct2 != null && ct2.toLowerCase(Locale.US).contains("text/html")) {
+                        String html2 = readSmallText(conn.getInputStream());
+                        conn.disconnect();
+                        if (html2.contains("Too many users have viewed or downloaded") || html2.contains("Quota exceeded")) {
+                            throw new IOException("Превышен лимит скачиваний Google Диска (квота 24ч).");
+                        }
+                        throw new IOException("Google Диск не отдал файл (возможно, включён лимит или закрыт доступ).");
                     }
-                    throw new IOException("Google Диск не отдал файл (возможно, включён лимит или закрыт доступ).");
+                } else {
+                    if (html.contains("Too many users have viewed or downloaded") || html.contains("Quota exceeded")) {
+                        throw new IOException("Превышен лимит скачиваний Google Диска (квота 24ч). Используйте другую ссылку или выберите архив/ISO с телефона.");
+                    }
+                    throw new IOException("Google Диск вернул страницу вместо файла (проверьте доступ 'Все, у кого есть ссылка').");
                 }
             }
             long total = conn.getContentLengthLong();
