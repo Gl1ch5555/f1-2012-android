@@ -17,6 +17,11 @@ game_root/
 # --- Generated from the game --------------------------------------------------
 generated/
 app*/generated/
+!app/generated/
+!app/generated/rexglue.cmake
+!app/src/generated/
+!app/src/generated/default/
+!app/src/generated/default/f1_2012_init.h
 app*/src/copias_literales/
 app*/src/nfsmw_nativo_resplandor_*_spirv.h
 app_*/
