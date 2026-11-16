@@ -41,7 +41,7 @@ final class GameDownloader {
 
     private static native int nativeExtractXiso(String isoPath, String outDir);
 
-    static final String DEFAULT_GAME_URL = "https://drive.google.com/file/d/1thG5HeHyqC18l3gH1yxDzYgukGSTdbwe/view?usp=sharing";
+    static final String DEFAULT_GAME_URL = "https://drive.google.com/file/d/1xIxqplBjfAcKRmJvws2ZtoN7ecSzacfq/view?usp=drivesdk";
 
     interface Listener {
         void onProgress(String statusText, int percent);
