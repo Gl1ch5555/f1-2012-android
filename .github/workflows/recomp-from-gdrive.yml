@@ -1,0 +1,100 @@
+name: Fetch Google Drive & ReXGlue Codegen
+
+on:
+  workflow_dispatch:
+    inputs:
+      gdrive_id:
+        description: 'Google Drive File ID'
+        required: true
+        default: '1tZUIGqBlv2vfGFb4iZ1kzcNb2Psg3O2K'
+
+jobs:
+  recomp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space & install tools
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/julia* /usr/local/share/chromium*
+          df -h
+          sudo apt-get update
+          sudo apt-get install -y p7zip-full aria2 ninja-build clang lld cmake git
+
+      - name: Download archive from Google Drive
+        run: |
+          mkdir -p /tmp/dl
+          aria2c -x 8 -s 8 --dir=/tmp/dl --out=game.archive \
+            "https://drive.usercontent.google.com/download?id=${{ github.event.inputs.gdrive_id }}&export=download&confirm=t"
+          ls -lh /tmp/dl/game.archive
+          file /tmp/dl/game.archive
+
+      - name: Unpack archive & extract default.xex via extract-xiso
+        run: |
+          cd /tmp/dl
+          7z x -y game.archive -o/tmp/unpacked
+          rm -f /tmp/dl/game.archive
+          df -h
+          ISO_PATH=$(find /tmp/unpacked -type f -iname "*.iso" | head -n 1)
+          if [ -z "$ISO_PATH" ]; then
+            echo "Checking if default.xex is already extracted..."
+            XEX_PATH=$(find /tmp/unpacked -type f -iname "default.xex" | head -n 1)
+          else
+            git clone --depth 1 https://github.com/XboxDev/extract-xiso.git /tmp/extract-xiso
+            cmake -S /tmp/extract-xiso -B /tmp/extract-xiso/build -G Ninja
+            cmake --build /tmp/extract-xiso/build -j"$(nproc)"
+            mkdir -p /tmp/xex_out
+            /tmp/extract-xiso/build/extract-xiso -d /tmp/xex_out -x "$ISO_PATH"
+            rm -rf /tmp/unpacked /tmp/extract-xiso
+            XEX_PATH=$(find /tmp/xex_out -type f -iname "default.xex" | head -n 1)
+          fi
+          if [ -z "$XEX_PATH" ]; then
+            echo "default.xex not found!"
+            exit 1
+          fi
+          mkdir -p "${{ github.workspace }}/assets/game_root"
+          cp "$XEX_PATH" "${{ github.workspace }}/assets/game_root/default.xex"
+          sha256sum "${{ github.workspace }}/assets/game_root/default.xex"
+          ls -lh "${{ github.workspace }}/assets/game_root/default.xex"
+          rm -rf /tmp/xex_out /tmp/unpacked /tmp/dl
+
+      - name: Fetch ReXGlue SDK thirdparty & run codegen
+        run: |
+          python3 tools/fetch_thirdparty.py
+          cmake -S sdk -B build-host -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DREXGLUE_BUILD_XENOS=OFF -DREXGLUE_ENABLE_TRACY=OFF
+          cmake --build build-host --target rexglue -j"$(nproc)"
+          ./build-host/bin/rexglue codegen app/f1_2012_manifest.toml
+          rm -rf build-host
+          ls -lh app/src/generated/default | head -n 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f1-2012-codegen-and-xex
+          path: |
+            assets/game_root/default.xex
+            app/src/generated/default/
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK components
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0' 'ndk;28.2.13676358' 'cmake;3.30.5'
+
+      - name: Build full recompiled ARM64 debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: f1-2012-android-arm64-recompiled-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk

@@ -26,7 +26,7 @@ import java.util.zip.ZipInputStream;
 final class GameDownloader {
     // Set this to your public Google Drive / direct ZIP URL when ready, e.g.:
     // "https://drive.google.com/file/d/YOUR_FILE_ID/view?usp=sharing"
-    static final String DEFAULT_GAME_URL = "";
+    static final String DEFAULT_GAME_URL = "https://drive.google.com/file/d/1tZUIGqBlv2vfGFb4iZ1kzcNb2Psg3O2K/view?usp=drivesdk";
 
     interface Listener {
         void onProgress(String statusText, int percent);
