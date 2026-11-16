@@ -3,6 +3,7 @@ package com.f12012.android;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
 
 import org.apache.commons.compress.archivers.sevenz.SevenZArchiveEntry;
@@ -21,15 +22,17 @@ import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * Direct & Google Drive downloader + local ZIP / 7Z / Xbox 360 ISO extractor for F1 2012.
+ * Direct & Google Drive downloader + zero-copy local ZIP / 7Z / Xbox 360 ISO extractor for F1 2012.
  */
 final class GameDownloader {
     static {
@@ -48,6 +51,15 @@ final class GameDownloader {
     }
 
     private GameDownloader() {}
+
+    static void cleanupTempFiles(File targetDir) {
+        if (targetDir == null) return;
+        File parent = targetDir.getParentFile();
+        if (parent == null) return;
+        new File(parent, ".f1_2012_download.tmp").delete();
+        new File(parent, ".f1_2012_local.tmp").delete();
+        deleteRecursively(new File(parent, ".f1_2012_staging"));
+    }
 
     static String normalizeUrl(String rawUrl) {
         if (rawUrl == null) return "";
@@ -75,12 +87,13 @@ final class GameDownloader {
         File tempFile = new File(parent, ".f1_2012_download.tmp");
         File staging = new File(parent, ".f1_2012_staging");
         try {
+            cleanupTempFiles(targetDir);
             if (CookieHandler.getDefault() == null) {
                 CookieHandler.setDefault(new CookieManager());
             }
             listener.onProgress("Подключение к серверу...", 0);
             downloadFile(downloadUrl, tempFile, listener);
-            extractAnyAndInstall(tempFile, staging, targetDir, listener);
+            extractFileAndInstall(tempFile, staging, targetDir, listener);
             listener.onSuccess();
         } catch (Exception e) {
             listener.onError(e.getMessage() != null ? e.getMessage() : e.toString());
@@ -96,76 +109,152 @@ final class GameDownloader {
             listener.onError("Некорректный путь к папке игры.");
             return;
         }
-        File tempFile = new File(parent, ".f1_2012_local.tmp");
         File staging = new File(parent, ".f1_2012_staging");
         try {
+            cleanupTempFiles(targetDir);
             String name = queryDisplayName(ctx, uri);
-            listener.onProgress("Чтение " + name + "...", 0);
-            try (InputStream in = ctx.getContentResolver().openInputStream(uri)) {
-                if (in == null) {
+            listener.onProgress("Открытие " + name + "...", 0);
+
+            try (ParcelFileDescriptor pfd = ctx.getContentResolver().openFileDescriptor(uri, "r")) {
+                if (pfd == null) {
                     throw new IOException("Не удалось открыть выбранный файл.");
                 }
-                copyStreamWithProgress(in, tempFile, -1, "Копирование файла: ", listener);
+                byte[] sig = readSignature(pfd);
+                if (isZipSig(sig)) {
+                    if (!staging.mkdirs() && !staging.isDirectory()) {
+                        throw new IOException("Не удалось создать временную папку.");
+                    }
+                    try (FileInputStream fis = new FileInputStream(pfd.getFileDescriptor())) {
+                        unzipStream(fis, staging, pfd.getStatSize(), listener);
+                    }
+                    finalizeFromStaging(staging, targetDir, listener);
+                } else if (isSevenZipSig(sig)) {
+                    if (!staging.mkdirs() && !staging.isDirectory()) {
+                        throw new IOException("Не удалось создать временную папку.");
+                    }
+                    try (FileInputStream fis = new FileInputStream(pfd.getFileDescriptor());
+                         FileChannel channel = fis.getChannel();
+                         SevenZFile sevenZ = SevenZFile.builder().setSeekableByteChannel(channel).get()) {
+                        un7zip(sevenZ, staging, listener);
+                    }
+                    finalizeFromStaging(staging, targetDir, listener);
+                } else {
+                    // Direct Xbox 360 ISO via /proc/self/fd/<fd> (zero copy!)
+                    deleteRecursively(targetDir);
+                    if (!targetDir.mkdirs() && !targetDir.isDirectory()) {
+                        throw new IOException("Не удалось создать папку игры.");
+                    }
+                    String fdPath = "/proc/self/fd/" + pfd.getFd();
+                    runXisoWithProgress(fdPath, targetDir, listener);
+                    if (findGameRoot(targetDir) == null) {
+                        throw new IOException("Не удалось распаковать файл (неизвестный формат или внутри нет default.xex).");
+                    }
+                }
             }
-            extractAnyAndInstall(tempFile, staging, targetDir, listener);
             listener.onSuccess();
         } catch (Exception e) {
             listener.onError(e.getMessage() != null ? e.getMessage() : e.toString());
         } finally {
-            if (tempFile.exists()) tempFile.delete();
             deleteRecursively(staging);
         }
     }
 
-    private static void extractAnyAndInstall(File sourceFile, File staging, File targetDir, Listener listener) throws IOException {
+    private static void extractFileAndInstall(File sourceFile, File staging, File targetDir, Listener listener) throws IOException {
         deleteRecursively(staging);
-        if (!staging.mkdirs()) {
+        if (!staging.mkdirs() && !staging.isDirectory()) {
             throw new IOException("Не удалось создать временную папку распаковки.");
         }
 
         if (isZip(sourceFile)) {
-            listener.onProgress("Распаковка ZIP-архива...", 100);
-            unzip(sourceFile, staging, listener);
-        } else if (isSevenZip(sourceFile)) {
-            listener.onProgress("Распаковка 7z-архива...", 100);
-            un7zip(sourceFile, staging, listener);
-        } else {
-            listener.onProgress("Распаковка Xbox 360 ISO...", 50);
-            int rc = nativeExtractXiso(sourceFile.getAbsolutePath(), staging.getAbsolutePath());
-            if (rc != 0) {
-                throw new IOException("Не удалось распаковать файл (неизвестный формат или повреждённый ISO/архив, код " + rc + ").");
+            try (FileInputStream fis = new FileInputStream(sourceFile)) {
+                unzipStream(fis, staging, sourceFile.length(), listener);
             }
-        }
-
-        // Remove temp archive before nested ISO extraction to save storage space
-        if (sourceFile.exists()) {
             sourceFile.delete();
-        }
-
-        File resolvedRoot = findGameRoot(staging);
-        if (resolvedRoot == null) {
-            File isoFile = findLargestByExtension(staging, ".iso");
-            if (isoFile != null) {
-                listener.onProgress("Найден " + isoFile.getName() + ", извлекаю Xbox 360 ISO...", 50);
-                File isoOut = new File(staging, "_xiso_out");
-                if (!isoOut.mkdirs() && !isoOut.isDirectory()) {
-                    throw new IOException("Не удалось создать папку для распаковки ISO.");
-                }
-                int rc = nativeExtractXiso(isoFile.getAbsolutePath(), isoOut.getAbsolutePath());
-                isoFile.delete();
-                if (rc != 0) {
-                    throw new IOException("Ошибка распаковки ISO (код " + rc + ").");
-                }
-                resolvedRoot = findGameRoot(isoOut);
+            finalizeFromStaging(staging, targetDir, listener);
+        } else if (isSevenZip(sourceFile)) {
+            try (SevenZFile sevenZ = SevenZFile.builder().setFile(sourceFile).get()) {
+                un7zip(sevenZ, staging, listener);
+            }
+            sourceFile.delete();
+            finalizeFromStaging(staging, targetDir, listener);
+        } else {
+            deleteRecursively(targetDir);
+            if (!targetDir.mkdirs() && !targetDir.isDirectory()) {
+                throw new IOException("Не удалось создать папку игры.");
+            }
+            runXisoWithProgress(sourceFile.getAbsolutePath(), targetDir, listener);
+            sourceFile.delete();
+            if (findGameRoot(targetDir) == null) {
+                throw new IOException("Внутри ISO не найден default.xex.");
             }
         }
+    }
 
-        if (resolvedRoot == null) {
-            throw new IOException("Внутри архива/ISO не найден default.xex.");
+    private static void finalizeFromStaging(File staging, File targetDir, Listener listener) throws IOException {
+        File resolvedRoot = findGameRoot(staging);
+        if (resolvedRoot != null) {
+            deleteRecursively(targetDir);
+            if (!resolvedRoot.renameTo(targetDir)) {
+                copyRecursive(resolvedRoot, targetDir);
+            }
+            return;
         }
-        deleteRecursively(targetDir);
-        if (!resolvedRoot.renameTo(targetDir)) {
-            copyRecursive(resolvedRoot, targetDir);
+
+        File isoFile = findLargestByExtension(staging, ".iso");
+        if (isoFile != null) {
+            deleteRecursively(targetDir);
+            if (!targetDir.mkdirs() && !targetDir.isDirectory()) {
+                throw new IOException("Не удалось создать папку игры.");
+            }
+            runXisoWithProgress(isoFile.getAbsolutePath(), targetDir, listener);
+            isoFile.delete();
+            File rootInTarget = findGameRoot(targetDir);
+            if (rootInTarget == null) {
+                throw new IOException("Внутри ISO не найден default.xex.");
+            }
+            if (!rootInTarget.equals(targetDir)) {
+                File tmpMove = new File(targetDir.getParentFile(), ".f1_2012_move");
+                deleteRecursively(tmpMove);
+                if (!rootInTarget.renameTo(tmpMove)) {
+                    copyRecursive(rootInTarget, tmpMove);
+                }
+                deleteRecursively(targetDir);
+                if (!tmpMove.renameTo(targetDir)) {
+                    copyRecursive(tmpMove, targetDir);
+                    deleteRecursively(tmpMove);
+                }
+            }
+            return;
+        }
+
+        throw new IOException("Внутри архива не найден default.xex или .iso образ.");
+    }
+
+    private static void runXisoWithProgress(String isoPath, File outDir, Listener listener) throws IOException {
+        AtomicBoolean running = new AtomicBoolean(true);
+        Thread monitor = new Thread(() -> {
+            while (running.get()) {
+                long bytes = dirSize(outDir);
+                int pct = (int) Math.min(98, (bytes * 100L) / (6300L * 1024L * 1024L));
+                listener.onProgress(String.format(Locale.US, "Распаковка ISO: %.1f МБ (%d%%)",
+                        bytes / 1048576.0, pct), pct);
+                try {
+                    Thread.sleep(400);
+                } catch (InterruptedException ignored) {
+                    break;
+                }
+            }
+        }, "xiso-progress");
+        monitor.start();
+        int rc;
+        try {
+            rc = nativeExtractXiso(isoPath, outDir.getAbsolutePath());
+        } finally {
+            running.set(false);
+            monitor.interrupt();
+        }
+        if (rc != 0) {
+            throw new IOException("Ошибка распаковки Xbox 360 ISO (код " + rc + ").");
         }
     }
 
@@ -279,10 +368,31 @@ final class GameDownloader {
         return null;
     }
 
+    private static byte[] readSignature(ParcelFileDescriptor pfd) throws IOException {
+        byte[] sig = new byte[4];
+        try (FileInputStream in = new FileInputStream(pfd.getFileDescriptor())) {
+            FileChannel ch = in.getChannel();
+            long pos = ch.position();
+            ch.position(0);
+            int n = in.read(sig);
+            ch.position(pos);
+            if (n < 4) return new byte[4];
+        }
+        return sig;
+    }
+
+    private static boolean isZipSig(byte[] sig) {
+        return sig.length >= 2 && sig[0] == 0x50 && sig[1] == 0x4B;
+    }
+
+    private static boolean isSevenZipSig(byte[] sig) {
+        return sig.length >= 4 && sig[0] == 0x37 && sig[1] == 0x7A && sig[2] == (byte) 0xBC && sig[3] == (byte) 0xAF;
+    }
+
     private static boolean isZip(File f) {
         byte[] sig = new byte[4];
         try (FileInputStream in = new FileInputStream(f)) {
-            return in.read(sig) == 4 && sig[0] == 0x50 && sig[1] == 0x4B;
+            return in.read(sig) == 4 && isZipSig(sig);
         } catch (IOException e) {
             return false;
         }
@@ -291,17 +401,18 @@ final class GameDownloader {
     private static boolean isSevenZip(File f) {
         byte[] sig = new byte[4];
         try (FileInputStream in = new FileInputStream(f)) {
-            return in.read(sig) == 4 && sig[0] == 0x37 && sig[1] == 0x7A && sig[2] == (byte) 0xBC && sig[3] == (byte) 0xAF;
+            return in.read(sig) == 4 && isSevenZipSig(sig);
         } catch (IOException e) {
             return false;
         }
     }
 
-    private static void unzip(File zipFile, File destDir, Listener listener) throws IOException {
+    private static void unzipStream(InputStream rawIn, File destDir, long archiveBytes, Listener listener) throws IOException {
         String canonicalDest = destDir.getCanonicalPath() + File.separator;
         byte[] buf = new byte[65536];
-        int count = 0;
-        try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(new FileInputStream(zipFile)))) {
+        long written = 0;
+        long lastReport = 0;
+        try (ZipInputStream zis = new ZipInputStream(new BufferedInputStream(rawIn, 65536))) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
                 File outFile = new File(destDir, entry.getName());
@@ -318,11 +429,15 @@ final class GameDownloader {
                         int n;
                         while ((n = zis.read(buf)) != -1) {
                             bos.write(buf, 0, n);
+                            written += n;
+                            long now = System.currentTimeMillis();
+                            if (now - lastReport >= 250) {
+                                lastReport = now;
+                                int pct = archiveBytes > 0 ? (int) Math.min(99, (written * 100L) / archiveBytes) : 50;
+                                listener.onProgress(String.format(Locale.US, "Распаковка ZIP: %.1f МБ (%d%%)",
+                                        written / 1048576.0, pct), pct);
+                            }
                         }
-                    }
-                    count++;
-                    if (count % 25 == 0) {
-                        listener.onProgress("Распаковано файлов: " + count + "...", 100);
                     }
                 }
                 zis.closeEntry();
@@ -330,36 +445,58 @@ final class GameDownloader {
         }
     }
 
-    private static void un7zip(File archiveFile, File destDir, Listener listener) throws IOException {
+    private static void un7zip(SevenZFile sevenZFile, File destDir, Listener listener) throws IOException {
         String canonicalDest = destDir.getCanonicalPath() + File.separator;
         byte[] buf = new byte[65536];
-        int count = 0;
-        try (SevenZFile sevenZFile = SevenZFile.builder().setFile(archiveFile).get()) {
-            SevenZArchiveEntry entry;
-            while ((entry = sevenZFile.getNextEntry()) != null) {
-                File outFile = new File(destDir, entry.getName());
-                String canonicalOut = outFile.getCanonicalPath();
-                if (!canonicalOut.startsWith(canonicalDest)) {
-                    throw new IOException("Небезопасный путь в архиве: " + entry.getName());
-                }
-                if (entry.isDirectory()) {
-                    outFile.mkdirs();
-                } else {
-                    File p = outFile.getParentFile();
-                    if (p != null) p.mkdirs();
-                    try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(outFile))) {
-                        int n;
-                        while ((n = sevenZFile.read(buf)) > 0) {
-                            bos.write(buf, 0, n);
+        long totalUnpacked = 0;
+        for (SevenZArchiveEntry e : sevenZFile.getEntries()) {
+            if (!e.isDirectory() && e.getSize() > 0) totalUnpacked += e.getSize();
+        }
+        long done = 0;
+        long lastReport = 0;
+        SevenZArchiveEntry entry;
+        while ((entry = sevenZFile.getNextEntry()) != null) {
+            File outFile = new File(destDir, entry.getName());
+            String canonicalOut = outFile.getCanonicalPath();
+            if (!canonicalOut.startsWith(canonicalDest)) {
+                throw new IOException("Небезопасный путь в архиве: " + entry.getName());
+            }
+            if (entry.isDirectory()) {
+                outFile.mkdirs();
+            } else {
+                File p = outFile.getParentFile();
+                if (p != null) p.mkdirs();
+                try (BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(outFile))) {
+                    int n;
+                    while ((n = sevenZFile.read(buf)) > 0) {
+                        bos.write(buf, 0, n);
+                        done += n;
+                        long now = System.currentTimeMillis();
+                        if (now - lastReport >= 250) {
+                            lastReport = now;
+                            if (totalUnpacked > 0) {
+                                int pct = (int) Math.min(99, (done * 100L) / totalUnpacked);
+                                listener.onProgress(String.format(Locale.US, "Распаковка .7z: %.1f / %.1f МБ (%d%%)",
+                                        done / 1048576.0, totalUnpacked / 1048576.0, pct), pct);
+                            } else {
+                                listener.onProgress(String.format(Locale.US, "Распаковка .7z: %.1f МБ",
+                                        done / 1048576.0), 50);
+                            }
                         }
-                    }
-                    count++;
-                    if (count % 10 == 0) {
-                        listener.onProgress("Распаковано из .7z: " + count + "...", 100);
                     }
                 }
             }
         }
+    }
+
+    private static long dirSize(File dir) {
+        long sum = 0;
+        File[] list = dir.listFiles();
+        if (list == null) return 0;
+        for (File f : list) {
+            sum += f.isDirectory() ? dirSize(f) : f.length();
+        }
+        return sum;
     }
 
     private static File findGameRoot(File dir) {
