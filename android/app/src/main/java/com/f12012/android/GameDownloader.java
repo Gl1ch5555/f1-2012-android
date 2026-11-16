@@ -41,8 +41,7 @@ final class GameDownloader {
 
     private static native int nativeExtractXiso(String isoPath, String outDir);
 
-    // Put a direct .zip / .7z / .iso or Google Drive URL here when ready
-    static final String DEFAULT_GAME_URL = "";
+    static final String DEFAULT_GAME_URL = "https://drive.google.com/file/d/1thG5HeHyqC18l3gH1yxDzYgukGSTdbwe/view?usp=sharing";
 
     interface Listener {
         void onProgress(String statusText, int percent);
