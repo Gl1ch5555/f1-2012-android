@@ -142,23 +142,22 @@ public final class MainActivity extends Activity {
         }
         if (!ReleaseVersion.newer(result.tag, ReleaseUpdates.installed(this))) {
             if (manual) new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Actualizaciones").setMessage("Tienes la versión " + ReleaseUpdates.installed(this)
-                            + ". No hay una versión estable más reciente en GitHub.")
-                    .setPositiveButton("Aceptar", null).show();
+                    .setTitle("Обновления").setMessage("Установлена версия " + ReleaseUpdates.installed(this)
+                            + ". Более новой версии на GitHub нет.")
+                    .setPositiveButton("ОК", null).show();
             return;
         }
         android.content.SharedPreferences updates = ReleaseUpdates.prefs(this);
         if (!manual && result.tag.equals(updates.getString("notified_tag", ""))) return;
         updates.edit().putString("notified_tag", result.tag).apply();
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Nueva versión disponible: " + result.tag)
-                .setMessage("Puedes actualizar desde GitHub o seguir jugando con esta versión. Instala el APK "
-                        + "encima del anterior para conservar tus partidas y ajustes.")
-                .setPositiveButton("Actualizar", (dialog, which) -> {
+                .setTitle("Доступна новая версия: " + result.tag)
+                .setMessage("Можно обновиться на GitHub или продолжить играть. Установите новый APK поверх текущего, чтобы сохранить настройки.")
+                .setPositiveButton("Обновить", (dialog, which) -> {
                     try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(result.url))); }
-                    catch (ActivityNotFoundException error) { reportError("No se encontró una app para abrir GitHub."); }
+                    catch (ActivityNotFoundException error) { reportError("Не найдено приложение для открытия GitHub."); }
                 })
-                .setNegativeButton("Más tarde", null).show();
+                .setNegativeButton("Позже", null).show();
     }
 
     // ---- Screen --------------------------------------------------------------------------------------------
@@ -312,15 +311,12 @@ public final class MainActivity extends Activity {
         ScrollView scroll = new ScrollView(this);
         scroll.addView(optionsList);
         container.addView(scroll, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(240)));
-        LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(44));
-        rp.topMargin = dp(10);
-        container.addView(sendReport, rp);
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(190)));
 
         settingsDialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("Настройки F1 2012")
                 .setView(container)
+                .setNeutralButton("Логи и диагностика", (d, w) -> chooseReportDestination())
                 .setPositiveButton("Закрыть", null)
                 .create();
         settingsDialog.show();
@@ -603,28 +599,28 @@ public final class MainActivity extends Activity {
 
     private void chooseReportDestination() {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Enviar crash o log")
-                .setMessage("El informe incluye modelo, Android, GPU, ajustes y registros de esta app. Añade qué ocurrió antes de enviarlo.")
-                .setPositiveButton("Correo", (dialog, which) -> prepareReport(0))
+                .setTitle("Логи и диагностика")
+                .setMessage("Отчёт включает модель телефона, Android, GPU, настройки и логи падения.")
+                .setPositiveButton("Сохранить ZIP", (dialog, which) -> prepareReport(2))
                 .setNeutralButton("GitHub", (dialog, which) -> prepareReport(1))
-                .setNegativeButton("Guardar ZIP", (dialog, which) -> prepareReport(2)).show();
+                .setNegativeButton("Отмена", null).show();
     }
 
     private void reportError(String message) {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Diagnóstico").setMessage(message).setPositiveButton("Aceptar", null).show();
+                .setTitle("Диагностика").setMessage(message).setPositiveButton("ОК", null).show();
     }
 
     private void prepareReport(int destination) {
         sendReport.setEnabled(false);
-        sendReport.setText("Preparando diagnóstico…");
+        sendReport.setText("Сбор логов…");
         importer.execute(() -> {
             try {
                 File report = Diagnostics.createReport(this);
                 mainHandler.post(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     sendReport.setEnabled(true);
-                    sendReport.setText("Enviar crash o log");
+                    sendReport.setText("Логи и диагностика");
                     if (destination == 0) shareReportByEmail(report);
                     else saveReport(report, destination == 1);
                 });
@@ -632,8 +628,8 @@ public final class MainActivity extends Activity {
                 mainHandler.post(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     sendReport.setEnabled(true);
-                    sendReport.setText("Enviar crash o log");
-                    reportError("No se pudo preparar el informe: " + error.getMessage());
+                    sendReport.setText("Логи и диагностика");
+                    reportError("Не удалось собрать отчёт: " + error.getMessage());
                 });
             }
         });
@@ -967,7 +963,7 @@ public final class MainActivity extends Activity {
 
     private String profileLabel() {
         SharedPreferences prefs = GameOptions.prefs(this);
-        return profileValues("").equals(profileValues("preset_applied_")) ? prefs.getString("preset_name", "Personalizado") : "Personalizado";
+        return profileValues("").equals(profileValues("preset_applied_")) ? prefs.getString("preset_name", "Свой") : "Свой";
     }
 
     private void chooseProfile() {
@@ -998,7 +994,7 @@ public final class MainActivity extends Activity {
             java.util.Map<String,String> backup = GraphicsPresets.preserve(profileValues(""), profileValues("preset_applied_"), previous);
             for (java.util.Map.Entry<String,String> entry : backup.entrySet()) edit.putString("preset_backup_" + entry.getKey(), entry.getValue());
             edit.putBoolean("preset_has_backup", true).putString("preset_name", GraphicsPresets.NAMES[profile]);
-        } else edit.putString("preset_name", "Personalizado");
+        } else edit.putString("preset_name", "Свой");
         for (java.util.Map.Entry<String,String> entry : next.entrySet()) {
             edit.putString(entry.getKey(), entry.getValue());
             edit.putString("preset_applied_" + entry.getKey(), entry.getValue());

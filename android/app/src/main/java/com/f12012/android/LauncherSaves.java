@@ -30,7 +30,7 @@ final class LauncherSaves {
     boolean blocked() { return busy || failedRecovery; }
     private void message(String text) {
         if (activity.isFinishing() || activity.isDestroyed()) return;
-        new AlertDialog.Builder(activity).setTitle("Partidas guardadas").setMessage(text).setPositiveButton("Aceptar", null).show();
+        new AlertDialog.Builder(activity).setTitle("Сохранения").setMessage(text).setPositiveButton("ОК", null).show();
     }
     void recover() {
         if (GameActivity.gameRunning) return;
@@ -38,7 +38,7 @@ final class LauncherSaves {
         worker.execute(() -> {
             String error = null;
             try { SaveArchive.recover(root); }
-            catch (IOException failure) { error = "No se pudo recuperar una importación interrumpida. Conserva los datos de la app y los respaldos. " + failure.getMessage(); }
+            catch (IOException failure) { error = "Не удалось восстановить прерванный импорт: " + failure.getMessage(); }
             String report = error;
             main.post(() -> { busy = false; failedRecovery = report != null; setBusy.accept(failedRecovery); if (report != null) message(report); });
         });
@@ -48,19 +48,19 @@ final class LauncherSaves {
         return files == null ? null : Arrays.stream(files).max(Comparator.comparingLong(File::lastModified)).orElse(null);
     }
     void menu() {
-        if (blocked()) { message("Espera a que termine la recuperación de las partidas."); return; }
-        if (GameActivity.gameRunning) { message("Sal del juego antes de importar o exportar partidas."); return; }
+        if (blocked()) { message("Дождитесь завершения восстановления сохранений."); return; }
+        if (GameActivity.gameRunning) { message("Выйдите из игры перед импортом или экспортом."); return; }
         File last = latest();
-        String info = last == null ? "Todavía no hay respaldos locales." : "Último respaldo: " + DateFormat.getDateTimeInstance().format(new Date(last.lastModified()));
-        new AlertDialog.Builder(activity).setTitle("Partidas guardadas")
-            .setItems(new String[]{"Exportar ZIP", "Crear respaldo local", "Importar ZIP", "Restaurar último respaldo"}, (dialog, which) -> {
+        String info = last == null ? "Локальных резервных копий пока нет." : "Последняя копия: " + DateFormat.getDateTimeInstance().format(new Date(last.lastModified()));
+        new AlertDialog.Builder(activity).setTitle("Сохранения")
+            .setItems(new String[]{"Экспорт ZIP", "Создать локальную копию", "Импорт ZIP", "Восстановить последнюю копию"}, (dialog, which) -> {
                 if (which == 0) picker(EXPORT);
-                else if (which == 1) run(() -> "Respaldo creado y verificado: " + SaveArchive.backup(root, backups).getName() + ". Puedes exportar un ZIP para conservarlo fuera de la app.");
+                else if (which == 1) run(() -> "Копия создана и проверена: " + SaveArchive.backup(root, backups).getName());
                 else if (which == 2) picker(IMPORT);
                 else if (last == null) message(info);
-                else confirm(() -> run(() -> { SaveArchive.restore(root, new FileInputStream(last), backups); return "Respaldo restaurado. La copia anterior también quedó respaldada."; }));
-            }).setNeutralButton("Información", (dialog, which) -> message(info + "\nLos respaldos locales se pierden al desinstalar; exporta un ZIP para conservarlos. Las copias se verifican con SHA-256. Solo se importan ZIPs creados por esta función."))
-            .setNegativeButton("Cerrar", null).show();
+                else confirm(() -> run(() -> { SaveArchive.restore(root, new FileInputStream(last), backups); return "Резервная копия восстановлена."; }));
+            }).setNeutralButton("Справка", (dialog, which) -> message(info + "\nЛокальные копии удаляются при удалении приложения; экспортируйте ZIP для сохранности."))
+            .setNegativeButton("Закрыть", null).show();
     }
     private void picker(int request) {
         Intent intent = new Intent(request == EXPORT ? Intent.ACTION_CREATE_DOCUMENT : Intent.ACTION_OPEN_DOCUMENT)
