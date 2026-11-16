@@ -90,6 +90,7 @@ public final class MainActivity extends Activity {
             selectFolder.setEnabled(!busy);
         });
         launcherSaves.recover();
+        GameDownloader.cleanupTempFiles(sharedGameRoot());
         prepareSharedGameFolder();
         checkUpdates(false);
     }
