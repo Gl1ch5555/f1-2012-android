@@ -27,3 +27,8 @@ else()
 endif()
 
 rexglue_setup_target(f1_2012 GPU_PLUGINS xenos)
+
+if(TARGET imgui)
+    target_include_directories(f1_2012 PRIVATE
+        $<TARGET_PROPERTY:imgui,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
