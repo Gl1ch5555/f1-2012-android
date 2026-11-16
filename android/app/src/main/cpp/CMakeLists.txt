@@ -27,7 +27,11 @@ set(SDL_SHARED ON CACHE BOOL "SDL shared library loaded by SDLActivity" FORCE)
 set(SDL_STATIC OFF CACHE BOOL "Use SDL's shared Android library" FORCE)
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/../../../../../app" "f1-2012-app")
-set_target_properties(f1_2012 PROPERTIES OUTPUT_NAME "main")
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/../jniLibs/arm64-v8a/libmain.so")
+    set_target_properties(f1_2012 PROPERTIES OUTPUT_NAME "main_stub")
+else()
+    set_target_properties(f1_2012 PROPERTIES OUTPUT_NAME "main")
+endif()
 target_sources(f1_2012 PRIVATE "${CMAKE_CURRENT_LIST_DIR}/android_touch.cpp"
                              "${CMAKE_CURRENT_LIST_DIR}/android_rendimiento.cpp")
 

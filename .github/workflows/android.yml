@@ -58,7 +58,11 @@ jobs:
           elif [ -f app/src/generated/default/sources.cmake ]; then
             echo "Using cached generated C++ sources from app/src/generated/default/."
           else
-            echo "assets/game_root/default.xex not found; building Android shell + ReXGlue runtime with stub PPCImageConfig."
+            echo "Fetching precompiled libmain.so from recomp-precompiled release for fast APK build..."
+            mkdir -p android/app/src/main/jniLibs/arm64-v8a
+            curl -fSL "https://github.com/${{ github.repository }}/releases/download/recomp-precompiled/libmain.so" \
+              -o android/app/src/main/jniLibs/arm64-v8a/libmain.so
+            ls -lh android/app/src/main/jniLibs/arm64-v8a/libmain.so
           fi
 
       - uses: actions/setup-java@v4
