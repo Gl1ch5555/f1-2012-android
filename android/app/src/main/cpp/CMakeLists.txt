@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(nfsmw_android LANGUAGES C CXX)
 
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+endif()
+
 add_library(xiso_extract SHARED xiso_jni.cpp extract_xiso_wrap.c)
 target_compile_definitions(xiso_extract PRIVATE _FILE_OFFSET_BITS=64 _LARGEFILE64_SOURCE)
 target_link_options(xiso_extract PRIVATE "-Wl,-z,max-page-size=16384")
