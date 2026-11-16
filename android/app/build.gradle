@@ -9,7 +9,7 @@ if (!(editionId ==~ /[a-z][a-z0-9_]{0,31}/)) throw new GradleException('Invalid 
 def editionApp = 'app'
 def editionLibrary = 'main'
 def principal = [id: 'f1_2012', name: 'F1 2012 (434D0847)',
-        sha256: '0000000000000000000000000000000000000000000000000000000000000000',
+        sha256: '6c8fc1df16510535c40dc945d6a73d2d90fc839957ccbcba5d508665edf82ba9',
         language: 1, country: 103, library: 'main']
 def editions = [principal]
 def editionsDir = null
