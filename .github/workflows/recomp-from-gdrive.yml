@@ -24,9 +24,8 @@ jobs:
       - name: Download archive from Google Drive
         run: |
           mkdir -p /tmp/dl
-          curl -fSL --retry 3 --retry-delay 5 \
-            "https://drive.usercontent.google.com/download?id=${{ github.event.inputs.gdrive_id }}&export=download&confirm=t" \
-            -o /tmp/dl/game.archive
+          python3 -m pip install --quiet gdown
+          gdown --fuzzy "https://drive.google.com/file/d/${{ github.event.inputs.gdrive_id }}/view" -O /tmp/dl/game.archive
           ls -lh /tmp/dl/game.archive
           file /tmp/dl/game.archive
 
