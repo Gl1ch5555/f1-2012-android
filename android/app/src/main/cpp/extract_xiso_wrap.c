@@ -1,6 +1,8 @@
 #define __LINUX__ 1
 #define _LARGEFILE64_SOURCE 1
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <setjmp.h>
 #include <unistd.h>
 
