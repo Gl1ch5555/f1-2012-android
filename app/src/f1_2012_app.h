@@ -40,8 +40,6 @@ class F12012App : public rex::ReXApp {
         paths.game_data_root = local_root;
       }
     }
-    if (REXCVAR_GET(gpu_plugin).empty()) {
-      rex::cvar::SetFlagByName("gpu_plugin", "xenos");
-    }
+    rex::cvar::SetFlagByName("gpu_plugin", "xenos");
   }
 };
