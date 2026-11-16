@@ -1,20 +1,8 @@
 #include <jni.h>
-#include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
-static jmp_buf g_xiso_jmp;
-
-#define main extract_xiso_main
-#define exit(code) longjmp(g_xiso_jmp, (code) == 0 ? 1000 : (code))
-
-extern "C" {
-#include "extract_xiso.c"
-}
-
-#undef main
-#undef exit
+extern "C" int extract_xiso_run(int argc, char** argv);
 
 extern "C" JNIEXPORT jint JNICALL
 Java_com_f12012_android_GameDownloader_nativeExtractXiso(JNIEnv* env, jclass, jstring isoPath,
@@ -34,13 +22,7 @@ Java_com_f12012_android_GameDownloader_nativeExtractXiso(JNIEnv* env, jclass, js
   char* arg4 = strdup(iso);
   char* argv[] = {arg0, arg1, arg2, arg3, arg4, nullptr};
 
-  optind = 1;
-  int rc = setjmp(g_xiso_jmp);
-  if (rc == 0) {
-    rc = extract_xiso_main(5, argv);
-  } else if (rc == 1000) {
-    rc = 0;
-  }
+  int rc = extract_xiso_run(5, argv);
 
   free(arg2);
   free(arg4);
