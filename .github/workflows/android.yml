@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fetch ReXGlue SDK thirdparty dependencies
+        run: python3 tools/fetch_thirdparty.py
+
       - name: Fetch default.xex if xex_url provided
         if: ${{ github.event.inputs.xex_url != '' }}
         run: |
