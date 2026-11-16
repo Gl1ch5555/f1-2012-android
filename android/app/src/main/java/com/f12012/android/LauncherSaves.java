@@ -24,7 +24,7 @@ final class LauncherSaves {
     private final Handler main = new Handler(Looper.getMainLooper());
     LauncherSaves(Activity activity, Executor worker, Consumer<Boolean> setBusy) {
         this.activity = activity; this.worker = worker; this.setBusy = setBusy;
-        root = new File(activity.getFilesDir(), "nfsmw/user");
+        root = new File(activity.getFilesDir(), "f1_2012/user");
         backups = new File(activity.getFilesDir(), "save-backups");
     }
     boolean blocked() { return busy || failedRecovery; }

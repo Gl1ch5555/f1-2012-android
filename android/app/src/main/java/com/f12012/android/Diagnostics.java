@@ -135,7 +135,7 @@ final class Diagnostics {
             add(zip, "informe.txt", info.toString().getBytes(StandardCharsets.UTF_8));
             add(zip, "gpu.json", gpu(context).toString(2).getBytes(StandardCharsets.UTF_8));
             addFile(zip, "last-java-crash.txt", new File(context.getFilesDir(), "last-java-crash.txt"));
-            File logs = new File(context.getFilesDir(), "nfsmw/user/logs");
+            File logs = new File(context.getFilesDir(), "f1_2012/user/logs");
             File[] nativeLogs = logs.listFiles(file -> file.isFile() && file.getName().endsWith(".log"));
             if (nativeLogs != null) {
                 Arrays.sort(nativeLogs, Comparator.comparingLong(File::lastModified).reversed());
