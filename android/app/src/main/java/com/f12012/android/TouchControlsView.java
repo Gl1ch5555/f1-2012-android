@@ -137,23 +137,23 @@ public final class TouchControlsView extends View {
     private void createControls() {
         final int grey = 0xFF2A3440;
         // Left hand: steering stick, D-pad, LB.
-        add(new Control("ls", STICK, "", "DIRECCION", 0, TRIGGER_NONE, grey, .15f, .70f, .40f, true));
+        add(new Control("ls", STICK, "", "РУЛЬ", 0, TRIGGER_NONE, grey, .15f, .70f, .40f, true));
         add(new Control("dpad", DPAD, "", "", 0, TRIGGER_NONE, grey, .10f, .30f, .27f, true));
         add(new Control("lb", BUTTON, "LB", "", LB, TRIGGER_NONE, grey, .07f, .09f, .13f, true));
         // Right hand: pedals, A/B/X/Y diamond, RB.
-        add(new Control("rt", PEDAL, "GAS", "RT", 0, TRIGGER_RIGHT, 0xFF1E5E3A, .92f, .70f, .42f, true));
-        add(new Control("lt", PEDAL, "FRENO", "LT", 0, TRIGGER_LEFT, 0xFF6B2323, .80f, .76f, .32f, true));
-        add(new Control("a", BUTTON, "A", "MANO", A, TRIGGER_NONE, 0xFF2E7D32, .78f, .45f, .15f, true));
-        add(new Control("b", BUTTON, "B", "NITRO", B, TRIGGER_NONE, 0xFFC62828, .87f, .36f, .15f, true));
-        add(new Control("x", BUTTON, "X", "CAMARA", X, TRIGGER_NONE, 0xFF1565C0, .69f, .36f, .15f, true));
-        add(new Control("y", BUTTON, "Y", "MIRAR", Y, TRIGGER_NONE, 0xFFF9A825, .78f, .27f, .15f, true));
+        add(new Control("rt", PEDAL, "ГАЗ", "RT", 0, TRIGGER_RIGHT, 0xFF1E5E3A, .92f, .70f, .42f, true));
+        add(new Control("lt", PEDAL, "ТОРМОЗ", "LT", 0, TRIGGER_LEFT, 0xFF6B2323, .80f, .76f, .32f, true));
+        add(new Control("a", BUTTON, "A", "DRS", A, TRIGGER_NONE, 0xFF2E7D32, .78f, .45f, .15f, true));
+        add(new Control("b", BUTTON, "B", "KERS", B, TRIGGER_NONE, 0xFFC62828, .87f, .36f, .15f, true));
+        add(new Control("x", BUTTON, "X", "КАМЕРА", X, TRIGGER_NONE, 0xFF1565C0, .69f, .36f, .15f, true));
+        add(new Control("y", BUTTON, "Y", "ОБЗОР", Y, TRIGGER_NONE, 0xFFF9A825, .78f, .27f, .15f, true));
         add(new Control("rb", BUTTON, "RB", "", RB, TRIGGER_NONE, grey, .93f, .09f, .13f, true));
         // Middle: Back, Start and the editor.
         add(new Control("back", BUTTON, "BACK", "", BACK, TRIGGER_NONE, grey, .37f, .08f, .10f, true));
         add(new Control("menu", MENU, "⚙", "", 0, TRIGGER_NONE, grey, .50f, .08f, .09f, true));
         add(new Control("start", BUTTON, "START", "", START, TRIGGER_NONE, grey, .63f, .08f, .10f, true));
         // Off by default: the camera stick and the stick clicks.
-        add(new Control("rs", STICK, "", "CAMARA", 0, TRIGGER_NONE, grey, .55f, .72f, .30f, false));
+        add(new Control("rs", STICK, "", "КАМЕРА", 0, TRIGGER_NONE, grey, .55f, .72f, .30f, false));
         add(new Control("l3", BUTTON, "L3", "", LTHUMB, TRIGGER_NONE, grey, .28f, .88f, .11f, false));
         add(new Control("r3", BUTTON, "R3", "", RTHUMB, TRIGGER_NONE, grey, .45f, .88f, .11f, false));
     }

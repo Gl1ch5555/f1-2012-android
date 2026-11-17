@@ -65,14 +65,14 @@ final class LauncherSaves {
     private void picker(int request) {
         Intent intent = new Intent(request == EXPORT ? Intent.ACTION_CREATE_DOCUMENT : Intent.ACTION_OPEN_DOCUMENT)
                 .addCategory(Intent.CATEGORY_OPENABLE).setType("application/zip");
-        if (request == EXPORT) intent.putExtra(Intent.EXTRA_TITLE, "NFSMW-partidas-" + System.currentTimeMillis() + ".zip");
+        if (request == EXPORT) intent.putExtra(Intent.EXTRA_TITLE, "F1-2012-saves-" + System.currentTimeMillis() + ".zip");
         try { activity.startActivityForResult(intent, request); }
-        catch (Exception error) { message("No se pudo abrir el selector de documentos."); }
+        catch (Exception error) { message("Не удалось открыть выбор файла."); }
     }
     private void confirm(Runnable action) {
-        new AlertDialog.Builder(activity).setTitle("Importar partidas")
-            .setMessage("Se sustituirán los perfiles, partidas y logros. Primero se verificará el ZIP y se respaldarán los actuales. Los ajustes y shaders se conservan.")
-            .setPositiveButton("Importar con respaldo", (dialog, which) -> action.run()).setNegativeButton("Cancelar", null).show();
+        new AlertDialog.Builder(activity).setTitle("Импорт сохранений")
+            .setMessage("Профили, сохранения и достижения будут заменены. Сначала ZIP будет проверен, а текущие данные — сохранены в резервную копию. Настройки и шейдеры останутся.")
+            .setPositiveButton("Импортировать с бэкапом", (dialog, which) -> action.run()).setNegativeButton("Отмена", null).show();
     }
     boolean result(int request, int result, Intent data) {
         if (request != EXPORT && request != IMPORT) return false;
@@ -80,29 +80,29 @@ final class LauncherSaves {
         Uri uri = data.getData();
         if (request == EXPORT) run(() -> {
             OutputStream out = activity.getContentResolver().openOutputStream(uri, "w");
-            if (out == null) throw new IOException("No se puede escribir el documento.");
+            if (out == null) throw new IOException("Не удалось записать файл.");
             int count = SaveArchive.export(root, out);
-            return "ZIP exportado: " + count + " archivos de partidas. Ajustes, shaders, cachés y drivers quedan fuera.";
+            return "ZIP экспортирован: " + count + " файлов сохранений. Настройки, шейдеры, кэш и драйверы не включены.";
         });
         else confirm(() -> run(() -> {
             InputStream in = activity.getContentResolver().openInputStream(uri);
-            if (in == null) throw new IOException("No se puede leer el documento.");
+            if (in == null) throw new IOException("Не удалось прочитать файл.");
             File backup = SaveArchive.restore(root, in, backups);
-            return "Partidas importadas y verificadas. Respaldo previo: " + backup.getName();
+            return "Сохранения импортированы и проверены. Резервная копия: " + backup.getName();
         }));
         return true;
     }
     interface Job { String run() throws IOException; }
     private void run(Job job) {
-        if (blocked() || GameActivity.gameRunning) { message("Sal del juego y espera a que termine la operación actual."); return; }
+        if (blocked() || GameActivity.gameRunning) { message("Выйдите из игры и дождитесь завершения текущей операции."); return; }
         busy = true; setBusy.accept(true);
         worker.execute(() -> {
             String result;
             try { SaveArchive.recover(root); result = job.run(); }
-            catch (IOException error) { result = "No se completó la operación: " + error.getMessage(); }
+            catch (IOException error) { result = "Операция не выполнена: " + error.getMessage(); }
             boolean recoveryFailed = false;
             try { SaveArchive.recover(root); }
-            catch (IOException error) { recoveryFailed = true; result += " Conserva los datos de la app: hay una recuperación pendiente."; }
+            catch (IOException error) { recoveryFailed = true; result += " Не удаляйте данные приложения: требуется восстановление."; }
             String report = result;
             boolean blocked = recoveryFailed;
             main.post(() -> { busy = false; failedRecovery = blocked; setBusy.accept(blocked); message(report); });

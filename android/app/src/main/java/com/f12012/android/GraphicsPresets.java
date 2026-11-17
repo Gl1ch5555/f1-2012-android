@@ -13,7 +13,7 @@ final class GraphicsPresets {
             {"fbo", "false", "true"},
             {"fsi", "true", "false"}
         };
-        if (preset < 0 || preset >= data.length) throw new IllegalArgumentException("Preajuste inválido");
+        if (preset < 0 || preset >= data.length) throw new IllegalArgumentException("Неверный пресет");
         Map<String,String> result = new LinkedHashMap<>();
         for (int i = 0; i < KEYS.length; ++i) result.put(KEYS[i], data[preset][i]);
         return result;

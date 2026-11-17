@@ -508,15 +508,15 @@ public final class MainActivity extends Activity {
                 if (isFinishing() || isDestroyed()) return;
                 launchGame.setEnabled(true);
                 if (edition == null || !edition.supported() || !GameActivity.canLoad(edition)) {
-                    String reason = edition == null ? "No se puede leer default.xex. Comprueba la copia del juego."
-                            : !edition.supported() ? "Tu ejecutable es de la edición " + edition.describe()
-                                    + ". Este APK incluye: " + GameEdition.compiledNames()
-                                    + ". Cada edición necesita su propia compilación."
-                            : "Para cambiar de edición, cierra completamente la aplicación y vuelve a abrirla.";
+                    String reason = edition == null ? "Не удалось прочитать default.xex. Проверьте файлы игры."
+                            : !edition.supported() ? "Ваш файл относится к изданию " + edition.describe()
+                                    + ". Этот APK включает: " + GameEdition.compiledNames()
+                                    + ". Для каждого издания нужна своя сборка."
+                            : "Чтобы сменить издание, полностью закройте приложение и откройте его снова.";
                     new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                            .setTitle("No se puede iniciar esta edición")
+                            .setTitle("Невозможно запустить это издание")
                             .setMessage(reason)
-                            .setPositiveButton("Volver", null).show();
+                            .setPositiveButton("Назад", null).show();
                     return;
                 }
                 continuePlay(problem);
@@ -530,22 +530,22 @@ public final class MainActivity extends Activity {
             return;
         }
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Probar otro renderizador")
-                .setMessage(problem + "\n\nPuedes usar el renderizador nativo sobre OpenGL ES (experimental, para GPUs "
-                        + "sin Vulkan compatible) o el modo de compatibilidad, que sigue usando Vulkan. Pueden tener "
-                        + "errores gráficos o funcionar más lento.")
-                .setPositiveButton("Usar OpenGL ES", (dialog, which) -> {
+                .setTitle("Попробовать другой рендерер")
+                .setMessage(problem + "\n\nМожно использовать нативный рендерер на OpenGL ES (экспериментально, для GPU "
+                        + "без совместимого Vulkan) или режим совместимости на Vulkan. Возможны графические ошибки "
+                        + "или снижение скорости.")
+                .setPositiveButton("Использовать OpenGL ES", (dialog, which) -> {
                     GameOptions.set(this, GameOptions.RENDERER, "nativo");
                     GameOptions.set(this, GameOptions.API, "gles");
                     refreshOptions();
                     playCompatibleGame();
                 })
-                .setNeutralButton("Compatibilidad Vulkan", (dialog, which) -> {
+                .setNeutralButton("Совместимость Vulkan", (dialog, which) -> {
                     GameOptions.set(this, GameOptions.RENDERER, "xenos");
                     refreshOptions();
                     playCompatibleGame();
                 })
-                .setNegativeButton("Volver", null).show();
+                .setNegativeButton("Назад", null).show();
     }
 
     private void playCompatibleGame() {
@@ -571,13 +571,13 @@ public final class MainActivity extends Activity {
                 launchGame.setEnabled(true);
                 if (server == null) {
                     new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                            .setTitle("Multijugador LAN")
+                            .setTitle("Локальная сеть (LAN)")
                             .setMessage(host
-                                    ? "Este móvil no está en ninguna Wi-Fi ni da punto de acceso: nadie podría unirse."
-                                    : "No se encontró el servidor " + LanSettings.server(this) + ".")
-                            .setPositiveButton("Jugar sin LAN", (d, w) ->
+                                    ? "Телефон не подключён к Wi-Fi и не раздаёт точку доступа: никто не сможет подключиться."
+                                    : "Сервер " + LanSettings.server(this) + " не найден.")
+                            .setPositiveButton("Играть без LAN", (d, w) ->
                                     startActivity(new Intent(this, GameActivity.class)))
-                            .setNegativeButton("Volver", null).show();
+                            .setNegativeButton("Назад", null).show();
                     return;
                 }
                 startActivity(new Intent(this, GameActivity.class).putExtra(GameActivity.EXTRA_LAN_SERVER, server));
@@ -640,12 +640,12 @@ public final class MainActivity extends Activity {
         Intent email = new Intent(Intent.ACTION_SEND);
         email.setType("application/zip");
         email.putExtra(Intent.EXTRA_EMAIL, new String[]{Diagnostics.EMAIL});
-        email.putExtra(Intent.EXTRA_SUBJECT, "NFSMW Android: " + Build.MODEL + " — diagnóstico");
-        email.putExtra(Intent.EXTRA_TEXT, Diagnostics.summary(this) + "\nQué ocurrió:\n\nPasos para reproducirlo:\n\nEdición del juego:\n\nAdjunto el diagnóstico.");
+        email.putExtra(Intent.EXTRA_SUBJECT, "F1 2012 Android: " + Build.MODEL + " — диагностика");
+        email.putExtra(Intent.EXTRA_TEXT, Diagnostics.summary(this) + "\nЧто произошло:\n\nШаги для воспроизведения:\n\nИздание игры:\n\nПрикрепляю отчёт диагностики.");
         email.putExtra(Intent.EXTRA_STREAM, uri);
-        email.setClipData(ClipData.newUri(getContentResolver(), "Diagnóstico NFSMW", uri));
+        email.setClipData(ClipData.newUri(getContentResolver(), "Диагностика F1 2012", uri));
         email.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        try { startActivity(Intent.createChooser(email, "Enviar a " + Diagnostics.EMAIL)); }
+        try { startActivity(Intent.createChooser(email, "Отправить на " + Diagnostics.EMAIL)); }
         catch (ActivityNotFoundException error) { saveReport(report, false); }
     }
 
@@ -654,10 +654,10 @@ public final class MainActivity extends Activity {
         pendingGithub = github;
         if (github) {
             new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Reportar en GitHub")
-                    .setMessage("Primero guarda el ZIP. Después se abrirá el issue: describe el problema y adjunta el ZIP guardado.")
-                    .setPositiveButton("Guardar y abrir GitHub", (dialog, which) -> chooseReportFile())
-                    .setNegativeButton("Cancelar", (dialog, which) -> pendingReport = null).show();
+                    .setTitle("Сообщить на GitHub")
+                    .setMessage("Сначала сохраните ZIP. Затем откроется issue: опишите проблему и прикрепите сохранённый ZIP.")
+                    .setPositiveButton("Сохранить и открыть GitHub", (dialog, which) -> chooseReportFile())
+                    .setNegativeButton("Отмена", (dialog, which) -> pendingReport = null).show();
         } else chooseReportFile();
     }
 
@@ -669,7 +669,7 @@ public final class MainActivity extends Activity {
         try { startActivityForResult(save, REQUEST_SAVE_REPORT); }
         catch (ActivityNotFoundException error) {
             pendingReport = null;
-            reportError("No hay una aplicación para guardar archivos. Prueba la opción Correo.");
+            reportError("Нет приложения для сохранения файлов. Попробуйте отправить по почте.");
         }
     }
 
@@ -678,32 +678,32 @@ public final class MainActivity extends Activity {
         boolean github = pendingGithub;
         pendingReport = null;
         if (report == null || !report.isFile()) {
-            reportError("El informe ya no está disponible. Genera uno nuevo.");
+            reportError("Отчёт больше недоступен. Соберите новый.");
             return;
         }
         importer.execute(() -> {
             try (InputStream input = new FileInputStream(report);
                  java.io.OutputStream output = getContentResolver().openOutputStream(destination, "w")) {
-                if (output == null) throw new IOException("No se pudo abrir el archivo de destino.");
+                if (output == null) throw new IOException("Не удалось открыть файл назначения.");
                 byte[] buffer = new byte[16384];
                 for (int count; (count = input.read(buffer)) != -1;) output.write(buffer, 0, count);
             } catch (Exception error) {
                 mainHandler.post(() -> {
-                    if (!isFinishing() && !isDestroyed()) reportError("No se pudo guardar el ZIP: " + error.getMessage());
+                    if (!isFinishing() && !isDestroyed()) reportError("Не удалось сохранить ZIP: " + error.getMessage());
                 });
                 return;
             }
             mainHandler.post(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 if (github) {
-                    String body = "### Qué ocurrió\n\n### Pasos para reproducirlo\n\n### Edición del juego\n\n### Dispositivo\n"
-                            + Diagnostics.summary(this) + "\n### Diagnóstico\nAdjunta aquí el archivo **" + report.getName() + "** que acabas de guardar.\n";
+                    String body = "### Что произошло\n\n### Шаги для воспроизведения\n\n### Издание игры\n\n### Устройство\n"
+                            + Diagnostics.summary(this) + "\n### Диагностика\nПрикрепите сюда файл **" + report.getName() + "**, который вы только что сохранили.\n";
                     Uri issue = Uri.parse(Diagnostics.ISSUES).buildUpon()
                             .appendQueryParameter("title", "[Android] " + Build.MODEL + ": ")
                             .appendQueryParameter("body", body).build();
                     try { startActivity(new Intent(Intent.ACTION_VIEW, issue)); }
-                    catch (ActivityNotFoundException error) { reportError("ZIP guardado. Abre " + Diagnostics.ISSUES + " y adjúntalo al issue."); }
-                } else reportError("ZIP guardado. Puedes adjuntarlo a un issue o enviarlo a " + Diagnostics.EMAIL + ".");
+                    catch (ActivityNotFoundException error) { reportError("ZIP сохранён. Откройте " + Diagnostics.ISSUES + " и прикрепите его к issue."); }
+                } else reportError("ZIP сохранён. Его можно прикрепить к issue или отправить на " + Diagnostics.EMAIL + ".");
             });
         });
     }
@@ -721,8 +721,8 @@ public final class MainActivity extends Activity {
         selectFolder.setEnabled(false);
         shaderPanel.setVisibility(View.VISIBLE);
         shaderProgress.setProgress(0);
-        shaderText.setText(gles ? "Generando los shaders de OpenGL ES (solo la primera vez)…"
-                : "Generando los shaders del renderizador nativo (solo la primera vez)…");
+        shaderText.setText(gles ? "Генерация шейдеров OpenGL ES (только при первом запуске)…"
+                : "Генерация шейдеров нативного рендерера (только при первом запуске)…");
         getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         shaderBuilder = new ShaderBuilder(this, sharedGameRoot(), gles, new ShaderBuilder.Listener() {
             @Override
@@ -744,7 +744,7 @@ public final class MainActivity extends Activity {
             @Override
             public void onError(String message) {
                 shadersFinished();
-                shaderText.setText("No se pudieron generar los shaders: " + message);
+                shaderText.setText("Не удалось сгенерировать шейдеры: " + message);
                 shaderProgress.setProgress(0);
             }
         });
@@ -787,11 +787,11 @@ public final class MainActivity extends Activity {
 
     private void chooseLanMode() {
         String[] modes = {LanSettings.MODE_OFF, LanSettings.MODE_JOIN, LanSettings.MODE_HOST};
-        String[] labels = {"Desactivado", "Unirse a un servidor (PC u otro móvil)",
-                "Anfitrión: este móvil hace de servidor"};
+        String[] labels = {"Выкл", "Подключиться к серверу (ПК или другой телефон)",
+                "Хост: этот телефон работает как сервер"};
         int checked = java.util.Arrays.asList(modes).indexOf(LanSettings.mode(this));
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Multijugador LAN")
+                .setTitle("Локальная сеть (LAN)")
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     dialog.dismiss();
                     String mode = modes[which];
@@ -810,15 +810,14 @@ public final class MainActivity extends Activity {
                         chooseLanServer();
                     } else if (!LanSettings.MODE_OFF.equals(mode)) {
                         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                                .setTitle("Cómo jugar en LAN")
-                                .setMessage("Todos en la misma Wi-Fi (o en el punto de acceso del anfitrión), cada "
-                                        + "uno con un gamertag distinto. En el juego: Xbox Live → Partida rápida. Uno "
-                                        + "crea la partida y los demás se unen. Es experimental; el modo individual "
-                                        + "no cambia.")
-                                .setPositiveButton("Entendido", null).show();
+                                .setTitle("Как играть по LAN")
+                                .setMessage("Все устройства должны быть в одной Wi-Fi сети (или точке доступа хоста), у каждого "
+                                        + "свой gamertag. В игре: Xbox Live → Быстрая игра. Один создаёт лобби, "
+                                        + "остальные подключаются.")
+                                .setPositiveButton("Понятно", null).show();
                     }
                 })
-                .setNegativeButton("Cancelar", null).show();
+                .setNegativeButton("Отмена", null).show();
     }
 
     private void editGamertag() {
@@ -828,18 +827,18 @@ public final class MainActivity extends Activity {
         input.setFilters(new android.text.InputFilter[] {new android.text.InputFilter.LengthFilter(15)});
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("Gamertag")
-                .setMessage("Hasta 15 letras, números y espacios, empezando por letra. Tus partidas guardadas no cambian.")
+                .setMessage("До 15 латинских букв, цифр и пробелов, начиная с буквы. Сохранения не изменятся.")
                 .setView(input)
-                .setPositiveButton("Guardar", (dialog, which) -> {
+                .setPositiveButton("Сохранить", (dialog, which) -> {
                     String value = input.getText().toString().trim();
                     if (!LanSettings.validGamertag(value)) {
-                        reportError("Gamertag no válido: hasta 15 letras, números y espacios, empezando por letra.");
+                        reportError("Неверный gamertag: до 15 латинских букв, цифр и пробелов, начиная с буквы.");
                         return;
                     }
                     LanSettings.gamertag(this, value);
                     refreshOptions();
                 })
-                .setNegativeButton("Cancelar", null).show();
+                .setNegativeButton("Отмена", null).show();
     }
 
     private void chooseLanServer() {
@@ -848,51 +847,50 @@ public final class MainActivity extends Activity {
         input.setHint("192.168.1.20");
         input.setText(LanSettings.server(this));
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Servidor LAN")
-                .setMessage("La IP del PC con nfsmw-server-lan o del móvil anfitrión.")
+                .setTitle("LAN-сервер")
+                .setMessage("IP-адрес ПК или телефона-хоста.")
                 .setView(input)
-                .setPositiveButton("Guardar", (dialog, which) -> {
+                .setPositiveButton("Сохранить", (dialog, which) -> {
                     String value = input.getText().toString().trim();
                     if (!LanSettings.validAddress(value)) {
-                        reportError("Dirección no válida.");
+                        reportError("Некорректный адрес.");
                         return;
                     }
                     LanSettings.server(this, value);
                     refreshOptions();
                 })
-                .setNeutralButton("Buscar en la red", (dialog, which) -> searchLanServers())
-                .setNegativeButton("Cancelar", null).show();
+                .setNeutralButton("Найти в сети", (dialog, which) -> searchLanServers())
+                .setNegativeButton("Отмена", null).show();
     }
 
     private void searchLanServers() {
         AlertDialog searching = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setMessage("Buscando servidores en la red local…").setCancelable(false).show();
+                .setMessage("Поиск серверов в локальной сети…").setCancelable(false).show();
         importer.execute(() -> {
             java.util.List<BuscadorServidores.Encontrado> found = BuscadorServidores.buscar();
             mainHandler.post(() -> {
                 searching.dismiss();
                 if (isFinishing() || isDestroyed()) return;
                 if (found == null) {
-                    reportError("Este móvil no está en ninguna red local.");
+                    reportError("Телефон не подключён к локальной сети.");
                     return;
                 }
                 if (found.isEmpty()) {
-                    reportError("No se encontró ningún servidor. Escribe la IP del anfitrión a mano.");
+                    reportError("Серверы не найдены. Введите IP хоста вручную.");
                     return;
                 }
                 String[] items = new String[found.size()];
                 for (int i = 0; i < items.length; i++) {
                     BuscadorServidores.Encontrado e = found.get(i);
-                    items[i] = (e.nombre.isEmpty() ? e.ip : e.nombre + " · " + e.ip) + " · " + e.jugadores
-                            + (e.jugadores == 1 ? " jugador" : " jugadores");
+                    items[i] = (e.nombre.isEmpty() ? e.ip : e.nombre + " · " + e.ip) + " · " + e.jugadores + " игр.";
                 }
                 new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                        .setTitle("Servidores encontrados")
+                        .setTitle("Найденные серверы")
                         .setItems(items, (dialog, which) -> {
                             LanSettings.server(this, found.get(which).ip);
                             refreshOptions();
                         })
-                        .setNegativeButton("Cancelar", null).show();
+                        .setNegativeButton("Отмена", null).show();
             });
         });
     }
@@ -900,30 +898,30 @@ public final class MainActivity extends Activity {
     private void chooseDriver() {
         java.util.List<GpuDrivers.Driver> drivers = GpuDrivers.list(this);
         String[] names = new String[drivers.size() + 1];
-        names[0] = "Driver del sistema";
+        names[0] = "Системный драйвер";
         int selected = 0;
         for (int i = 0; i < drivers.size(); ++i) {
             names[i + 1] = drivers.get(i).name;
             if (drivers.get(i).id.equals(GpuDrivers.selectedId(this))) selected = i + 1;
         }
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Driver Vulkan")
+                .setTitle("Драйвер Vulkan")
                 .setSingleChoiceItems(names, selected, (dialog, which) -> {
                     GpuDrivers.select(this, which == 0 ? "" : drivers.get(which - 1).id);
                     refreshOptions(); dialog.dismiss();
                 })
-                .setPositiveButton("Importar ZIP", (dialog, which) -> {
+                .setPositiveButton("Импорт ZIP", (dialog, which) -> {
                     Intent picker = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*")
                             .addCategory(Intent.CATEGORY_OPENABLE);
                     startActivityForResult(picker, REQUEST_DRIVER_ZIP);
                 })
-                .setNeutralButton("Eliminar seleccionado", (dialog, which) -> {
+                .setNeutralButton("Удалить выбранный", (dialog, which) -> {
                     GpuDrivers.Driver driver = GpuDrivers.selected(this);
                     if (driver == null) return;
                     try { GpuDrivers.remove(this, driver); refreshOptions(); }
                     catch (IOException error) { reportError(error.getMessage()); }
                 })
-                .setNegativeButton("Volver", null).show();
+                .setNegativeButton("Назад", null).show();
     }
 
     private void probeDriver(boolean playAfter) {
@@ -937,21 +935,21 @@ public final class MainActivity extends Activity {
             Diagnostics.acceptGpu(this, report);
             org.json.JSONObject gpu = new org.json.JSONObject(report);
             boolean failed = gpu.optBoolean("driverLoadFailed") || gpu.has("probeError");
-            String text = "GPU: " + gpu.optString("gpu", "no disponible")
-                    + "\nVulkan: " + gpu.optString("vulkan", "no disponible")
-                    + "\nConjuntos de descriptores: " + gpu.optInt("maxBoundDescriptorSets")
-                    + "\n" + (gpu.optBoolean("compatible") ? "Funciones del renderizador nativo disponibles."
-                            : "Funciones faltantes: " + gpu.optJSONArray("missing"));
-            if (failed) text = "No se pudo probar el driver. " + gpu.optString("probeError", "Error al cargar Vulkan.");
+            String text = "GPU: " + gpu.optString("gpu", "недоступно")
+                    + "\nVulkan: " + gpu.optString("vulkan", "недоступно")
+                    + "\nНаборов дескрипторов: " + gpu.optInt("maxBoundDescriptorSets")
+                    + "\n" + (gpu.optBoolean("compatible") ? "Функции нативного рендерера поддерживаются."
+                            : "Недостающие функции: " + gpu.optJSONArray("missing"));
+            if (failed) text = "Не удалось проверить драйвер. " + gpu.optString("probeError", "Ошибка загрузки Vulkan.");
             if (playAfterProbe && !failed) { playAfterProbe = false; playChecked(); return; }
             playAfterProbe = false;
             new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Prueba del driver Vulkan").setMessage(text)
-                    .setPositiveButton("Aceptar", null)
-                    .setNeutralButton("Usar sistema", (dialog, which) -> {
+                    .setTitle("Тест драйвера Vulkan").setMessage(text)
+                    .setPositiveButton("ОК", null)
+                    .setNeutralButton("Системный", (dialog, which) -> {
                         GpuDrivers.select(this, ""); refreshOptions();
                     }).show();
-        } catch (Exception error) { playAfterProbe = false; reportError("Diagnóstico no válido: " + error.getMessage()); }
+        } catch (Exception error) { playAfterProbe = false; reportError("Некорректные данные диагностики: " + error.getMessage()); }
     }
 
     private java.util.Map<String,String> profileValues(String prefix) {
@@ -968,15 +966,15 @@ public final class MainActivity extends Activity {
 
     private void chooseProfile() {
         boolean saved = GameOptions.prefs(this).getBoolean("preset_has_backup", false);
-        String[] names = saved ? new String[]{"Batería", "Equilibrado", "Rendimiento", "Calidad", "Mis ajustes guardados"}
+        String[] names = saved ? new String[]{"Батарея", "Сбалансированный", "Производительность", "Качество", "Мои сохранённые настройки"}
                 : GraphicsPresets.NAMES;
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle("Perfil gráfico")
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle("Профиль графики")
                 .setItems(names, (dialog, which) -> new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                        .setTitle(names[which]).setMessage(which == 4 ? "Se recuperarán tus seis ajustes gráficos guardados."
-                                : "Se ajustarán resolución, FPS, antialiasing, sombras y reflejos. Se guardarán tus valores personales para recuperarlos. El resultado depende del dispositivo; no hay mediciones de ahorro ni FPS para este perfil.")
-                        .setPositiveButton("Aplicar al próximo inicio", (confirm, button) -> applyProfile(which))
-                        .setNegativeButton("Cancelar", null).show())
-                .setNegativeButton("Cerrar", null).show();
+                        .setTitle(names[which]).setMessage(which == 4 ? "Будут восстановлены ваши сохранённые настройки графики."
+                                : "Будут изменены параметры рендера, VSync и пропуска кадров. Ваши текущие настройки сохранятся для отката.")
+                        .setPositiveButton("Применить при следующем запуске", (confirm, button) -> applyProfile(which))
+                        .setNegativeButton("Отмена", null).show())
+                .setNegativeButton("Закрыть", null).show();
     }
 
     private void applyProfile(int profile) {
@@ -985,7 +983,7 @@ public final class MainActivity extends Activity {
         // Validate against the launcher's actual options before changing any preference.
         for (java.util.Map.Entry<String,String> entry : next.entrySet()) {
             if (!java.util.Arrays.asList(GameOptions.find(entry.getKey()).values).contains(entry.getValue())) {
-                reportError("Los ajustes guardados no corresponden a esta versión."); return;
+                reportError("Сохранённые настройки не подходят к этой версии."); return;
             }
         }
         SharedPreferences.Editor edit = prefs.edit();
@@ -999,7 +997,7 @@ public final class MainActivity extends Activity {
             edit.putString(entry.getKey(), entry.getValue());
             edit.putString("preset_applied_" + entry.getKey(), entry.getValue());
         }
-        if (!edit.commit()) reportError("No se pudieron guardar los ajustes.");
+        if (!edit.commit()) reportError("Не удалось сохранить настройки.");
         refreshOptions();
     }
 
@@ -1016,7 +1014,7 @@ public final class MainActivity extends Activity {
                     dialog.dismiss();
                     refreshOptions();
                 })
-                .setNegativeButton("Cancelar", null)
+                .setNegativeButton("Отмена", null)
                 .show();
     }
 
@@ -1050,7 +1048,7 @@ public final class MainActivity extends Activity {
 
     private void addCheck(String name, boolean ok, boolean required) {
         String mark = ok ? "✓  " : (required ? "✗  " : "!  ");
-        String warning = ok || required ? "" : " · se generarán al pulsar JUGAR";
+        String warning = ok || required ? "" : " · создадутся при нажатии ИГРАТЬ";
         TextView row = label(mark + name + warning, 13,
                 ok ? 0xFF7CD992 : (required ? 0xFFFF6B6B : 0xFFFFC857), false);
         row.setPadding(0, dp(2), 0, dp(2));
@@ -1127,23 +1125,23 @@ public final class MainActivity extends Activity {
         if (requestCode == REQUEST_DRIVER_PROBE) {
             launchGame.setEnabled(true);
             showDriverReport(resultCode == RESULT_OK && data != null ? data.getStringExtra("gpu_report")
-                    : "{\"probeError\":\"La prueba se cerró o fue cancelada. Puedes volver al driver del sistema.\",\"driverLoadFailed\":true}");
+                    : "{\"probeError\":\"Проверка была закрыта или отменена. Вы можете вернуться к системному драйверу.\",\"driverLoadFailed\":true}");
             return;
         }
         if (requestCode == REQUEST_DRIVER_ZIP) {
             if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
             Uri zip = data.getData();
-            setImportStatus("Importando driver Vulkan…");
+            setImportStatus("Импорт драйвера Vulkan…");
             importer.execute(() -> {
                 try {
                     GpuDrivers.Driver driver = GpuDrivers.importZip(this, zip);
                     mainHandler.post(() -> {
                         if (isFinishing() || isDestroyed()) return;
                         GpuDrivers.select(this, driver.id); refreshOptions();
-                        setImportStatus("Driver importado: " + driver.name + ". Usa Probar driver para comprobarlo.");
+                        setImportStatus("Драйвер импортирован: " + driver.name + ". Запустите «Тест драйвера» для проверки.");
                     });
                 } catch (Exception error) {
-                    mainHandler.post(() -> reportError("No se pudo importar el driver: " + error.getMessage()));
+                    mainHandler.post(() -> reportError("Не удалось импортировать драйвер: " + error.getMessage()));
                 }
             });
             return;
@@ -1163,7 +1161,7 @@ public final class MainActivity extends Activity {
             if (hasStorageAccess()) prepareSharedGameFolder();
             else {
                 selectFolder.setEnabled(true);
-                setImportStatus("Activa el permiso de almacenamiento para usar Memoria interna/" + GAME_FOLDER_NAME + ".");
+                setImportStatus("Выдайте разрешение на доступ к хранилищу для использования Внутренняя память/" + GAME_FOLDER_NAME + ".");
             }
             return;
         }
@@ -1176,7 +1174,7 @@ public final class MainActivity extends Activity {
         try {
             getContentResolver().takePersistableUriPermission(tree, flags & Intent.FLAG_GRANT_READ_URI_PERMISSION);
         } catch (SecurityException error) {
-            setImportStatus("No se pudo guardar el permiso de la carpeta: " + error.getMessage());
+            setImportStatus("Не удалось сохранить разрешение для папки: " + error.getMessage());
             return;
         }
         getPreferences(MODE_PRIVATE).edit().putString(TREE_URI, tree.toString()).apply();
@@ -1190,7 +1188,7 @@ public final class MainActivity extends Activity {
             if (hasStorageAccess()) prepareSharedGameFolder();
             else {
                 selectFolder.setEnabled(true);
-                setImportStatus("Activa el permiso de almacenamiento para usar Memoria interna/" + GAME_FOLDER_NAME + ".");
+                setImportStatus("Выдайте разрешение на доступ к хранилищу для использования Внутренняя память/" + GAME_FOLDER_NAME + ".");
             }
         } else if (requestCode == REQUEST_NOTIF_PERM) {
             if (pendingDownloadUrl != null) {
@@ -1210,7 +1208,7 @@ public final class MainActivity extends Activity {
         if (!hasStorageAccess()) {
             selectFolder.setEnabled(false);
             launchGame.setVisibility(View.GONE);
-            setImportStatus("Para usar Memoria interna/" + GAME_FOLDER_NAME + ", activa el acceso a archivos que solicita Android.");
+            setImportStatus("Для использования Внутренняя память/" + GAME_FOLDER_NAME + " разрешите доступ к файлам.");
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 Intent settings = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                         Uri.parse("package:" + getPackageName()));
@@ -1223,7 +1221,7 @@ public final class MainActivity extends Activity {
 
         selectFolder.setEnabled(false);
         launchGame.setVisibility(View.GONE);
-        setImportStatus("Revisando el juego en la memoria interna...");
+        setImportStatus("Проверка файлов игры во внутренней памяти...");
         importer.execute(() -> {
             File gameRoot = sharedGameRoot();
             File oldPrivateRoot = privateGameRoot();
@@ -1238,26 +1236,26 @@ public final class MainActivity extends Activity {
                 }
 
                 if (isValidGameFolder(oldPrivateRoot)) {
-                    mainHandler.post(() -> setImportStatus("Moviendo el juego a Memoria interna/" + GAME_FOLDER_NAME + "..."));
+                    mainHandler.post(() -> setImportStatus("Перемещение игры в Внутренняя память/" + GAME_FOLDER_NAME + "..."));
                     deleteRecursively(staging);
                     deleteRecursively(previous);
                     copyDirectory(oldPrivateRoot, staging, staging.getCanonicalFile(), new long[]{0});
-                    if (!isValidGameFolder(staging)) throw new IOException("La copia no pasó la verificación de archivos.");
+                    if (!isValidGameFolder(staging)) throw new IOException("Копия не прошла проверку файлов.");
                     installStagedGame(staging, gameRoot, previous);
                     deleteRecursively(oldPrivateRoot);
                     deleteRecursively(previous);
-                    mainHandler.post(() -> showSharedGameFolder("Juego movido desde el almacenamiento privado."));
+                    mainHandler.post(() -> showSharedGameFolder("Игра перенесена из внутреннего хранилища."));
                     return;
                 }
 
                 if (!gameRoot.mkdirs() && !gameRoot.isDirectory()) {
-                    throw new IOException("No se pudo crear " + gameRoot.getAbsolutePath());
+                    throw new IOException("Не удалось создать " + gameRoot.getAbsolutePath());
                 }
                 mainHandler.post(() -> showSharedGameFolder(null));
             } catch (Exception error) {
                 try { deleteRecursively(staging); } catch (IOException ignored) {}
                 mainHandler.post(() -> {
-                    setImportStatus("No se pudo preparar la carpeta del juego: " + error.getMessage());
+                    setImportStatus("Не удалось подготовить папку игры: " + error.getMessage());
                     selectFolder.setEnabled(true);
                 });
             }
@@ -1293,7 +1291,7 @@ public final class MainActivity extends Activity {
     private void importGameFolder(Uri tree) {
         selectFolder.setEnabled(false);
         launchGame.setVisibility(View.GONE);
-        setImportStatus("Copiando el juego a Memoria interna/" + GAME_FOLDER_NAME + "...");
+        setImportStatus("Копирование игры в Внутренняя память/" + GAME_FOLDER_NAME + "...");
         importer.execute(() -> {
             File gameRoot = sharedGameRoot();
             File parent = gameRoot.getParentFile();
@@ -1303,10 +1301,10 @@ public final class MainActivity extends Activity {
                 deleteRecursively(staging);
                 deleteRecursively(previous);
                 DocumentFile source = DocumentFile.fromTreeUri(this, tree);
-                if (source == null || !source.isDirectory()) throw new IOException("No se pudo abrir la carpeta seleccionada.");
+                if (source == null || !source.isDirectory()) throw new IOException("Не удалось открыть выбранную папку.");
                 copyDirectory(source, staging, staging.getCanonicalFile(), new long[]{0});
                 if (!isValidGameFolder(staging)) {
-                    throw new IOException("Folder must contain default.xex (F1 2012 Xbox 360).");
+                    throw new IOException("Папка должна содержать default.xex (F1 2012 Xbox 360).");
                 }
                 installStagedGame(staging, gameRoot, previous);
                 File oldPrivateRoot = privateGameRoot();
@@ -1315,7 +1313,7 @@ public final class MainActivity extends Activity {
                 mainHandler.post(() -> showSharedGameFolder(null));
             } catch (Exception error) {
                 try { deleteRecursively(staging); } catch (IOException ignored) {}
-                mainHandler.post(() -> setImportStatus("Error al importar: " + error.getMessage()));
+                mainHandler.post(() -> setImportStatus("Ошибка импорта: " + error.getMessage()));
             } finally {
                 mainHandler.post(() -> selectFolder.setEnabled(shaderBuilder == null));
             }
@@ -1324,14 +1322,14 @@ public final class MainActivity extends Activity {
 
     private void copyDirectory(DocumentFile source, File destination, File safeRoot, long[] copiedBytes) throws IOException {
         if (!destination.getCanonicalFile().toPath().startsWith(safeRoot.toPath())) {
-            throw new IOException("La carpeta del juego contiene una ruta no válida.");
+            throw new IOException("Папка игры содержит недопустимый путь.");
         }
-        if (!destination.mkdirs() && !destination.isDirectory()) throw new IOException("No se pudo crear " + destination);
+        if (!destination.mkdirs() && !destination.isDirectory()) throw new IOException("Не удалось создать " + destination);
         for (DocumentFile child : source.listFiles()) {
             String name = child.getName();
             if (name == null || name.isEmpty() || name.equals(".") || name.equals("..") ||
                     name.contains("/") || name.contains("\\")) {
-                throw new IOException("La carpeta del juego contiene un nombre no válido.");
+                throw new IOException("Папка игры содержит недопустимое имя файла.");
             }
             File target = new File(destination, name);
             if (child.isDirectory()) {
@@ -1339,12 +1337,12 @@ public final class MainActivity extends Activity {
             } else if (child.isFile()) {
                 File parent = target.getParentFile();
                 if (parent == null || !parent.getCanonicalFile().toPath().startsWith(safeRoot.toPath())) {
-                    throw new IOException("Un archivo intenta salir de la carpeta de importación.");
+                    throw new IOException("Файл выходит за пределы папки импорта.");
                 }
-                if (!parent.mkdirs() && !parent.isDirectory()) throw new IOException("No se pudo crear una carpeta del juego.");
+                if (!parent.mkdirs() && !parent.isDirectory()) throw new IOException("Не удалось создать папку игры.");
                 try (InputStream input = getContentResolver().openInputStream(child.getUri());
                      FileOutputStream output = new FileOutputStream(target)) {
-                    if (input == null) throw new IOException("No se pudo leer " + name);
+                    if (input == null) throw new IOException("Не удалось прочитать " + name);
                     byte[] buffer = new byte[1024 * 1024];
                     int count;
                     while ((count = input.read(buffer)) != -1) {
@@ -1352,7 +1350,7 @@ public final class MainActivity extends Activity {
                         copiedBytes[0] += count;
                         if ((copiedBytes[0] & ((32L * 1024 * 1024) - 1)) < count) {
                             long total = copiedBytes[0];
-                            mainHandler.post(() -> setImportStatus("Copiados " + (total / (1024 * 1024)) + " MiB..."));
+                            mainHandler.post(() -> setImportStatus("Скопировано " + (total / (1024 * 1024)) + " МБ..."));
                         }
                     }
                     output.getFD().sync();
@@ -1363,11 +1361,11 @@ public final class MainActivity extends Activity {
 
     private void copyDirectory(File source, File destination, File safeRoot, long[] copiedBytes) throws IOException {
         if (!destination.getCanonicalFile().toPath().startsWith(safeRoot.toPath())) {
-            throw new IOException("La carpeta del juego contiene una ruta no válida.");
+            throw new IOException("Папка игры содержит недопустимый путь.");
         }
-        if (!destination.mkdirs() && !destination.isDirectory()) throw new IOException("No se pudo crear " + destination);
+        if (!destination.mkdirs() && !destination.isDirectory()) throw new IOException("Не удалось создать " + destination);
         File[] children = source.listFiles();
-        if (children == null) throw new IOException("No se pudo leer " + source.getAbsolutePath());
+        if (children == null) throw new IOException("Не удалось прочитать " + source.getAbsolutePath());
         byte[] buffer = new byte[1024 * 1024];
         for (File child : children) {
             File target = new File(destination, child.getName());
@@ -1382,7 +1380,7 @@ public final class MainActivity extends Activity {
                         copiedBytes[0] += count;
                         if ((copiedBytes[0] & ((128L * 1024 * 1024) - 1)) < count) {
                             long total = copiedBytes[0];
-                            mainHandler.post(() -> setImportStatus("Movidos " + (total / (1024 * 1024)) + " MiB..."));
+                            mainHandler.post(() -> setImportStatus("Перенесено " + (total / (1024 * 1024)) + " МБ..."));
                         }
                     }
                     output.getFD().sync();
@@ -1417,7 +1415,7 @@ public final class MainActivity extends Activity {
         if (!file.exists()) return;
         File[] children = file.listFiles();
         if (children != null) for (File child : children) deleteRecursively(child);
-        if (!file.delete()) throw new IOException("No se pudo borrar " + file.getName());
+        if (!file.delete()) throw new IOException("Не удалось удалить " + file.getName());
     }
 
     @Override
