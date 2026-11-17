@@ -48,13 +48,25 @@ final class GameOptions {
                     new String[] {"Xenos Vulkan (ReXGlue)"}),
             new Option(RESOLUTION, "Render Target Path", "render_target_path_vulkan", "",
                     new String[] {"", "fbo", "fsi"},
-                    new String[] {"Auto", "FBO (Host Render Targets)", "FSI (Fragment Shader Interlock)"}),
+                    new String[] {"Авто", "FBO (Host Render Targets)", "FSI (Fragment Shader Interlock)"}),
             new Option(FPS, "VSync", "vsync", "true",
                     new String[] {"true", "false"},
-                    new String[] {"On (60 Hz)", "Off (Unlocked)"}),
-            new Option("async_skip", "Async Skip Incomplete Frames", "vulkan_async_skip_incomplete_frames", "true",
+                    new String[] {"Вкл (60 Гц)", "Выкл (без лимита)"}),
+            new Option("async_skip", "Пропуск неполных кадров (Async)", "vulkan_async_skip_incomplete_frames", "true",
                     new String[] {"true", "false"},
-                    new String[] {"On (Recommended)", "Off"}),
+                    new String[] {"Вкл (рекомендуется)", "Выкл"}),
+            new Option("invalid_fetch", "Игнорировать битые fetch-константы", "gpu_allow_invalid_fetch_constants", "true",
+                    new String[] {"true", "false"},
+                    new String[] {"Вкл (фикс чёрного 3D)", "Выкл"}),
+            new Option("native_msaa", "Нативный 2x MSAA", "native_2x_msaa", "false",
+                    new String[] {"false", "true"},
+                    new String[] {"Выкл (рекомендуется)", "Вкл"}),
+            new Option("gamma_unorm16", "Gamma RT как UNORM16", "gamma_render_target_as_unorm16", "true",
+                    new String[] {"true", "false"},
+                    new String[] {"Вкл (по умолчанию)", "Выкл (sRGB)"}),
+            new Option("native_shader_feat", "Нативные фичи шейдеров Vulkan", "vulkan_native_shader_features", "false",
+                    new String[] {"false", "true"},
+                    new String[] {"Выкл (совместимость)", "Вкл"}),
     };
 
     private static final String PREFS = "f1_2012_game";
@@ -102,7 +114,6 @@ final class GameOptions {
                 args.add("--" + o.cvar + "=" + val);
             }
         }
-        args.add("--vulkan_native_shader_features=false");
         args.add("--vulkan_require_geometry_shader=false");
         args.add("--vulkan_require_fill_mode_non_solid=false");
         GpuDrivers.arguments(context, args);
