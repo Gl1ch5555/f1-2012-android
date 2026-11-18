@@ -58,24 +58,51 @@ final class GameOptions {
             new Option("invalid_fetch", "Игнорировать битые fetch-константы", "gpu_allow_invalid_fetch_constants", "true",
                     new String[] {"true", "false"},
                     new String[] {"Вкл (фикс чёрного 3D)", "Выкл"}),
+            new Option("readback_resolve", "Readback Resolve (HDR / тени)", "readback_resolve", "some",
+                    new String[] {"some", "fast", "none", "full"},
+                    new String[] {"Some (автоэкспозиция, рекомендуемо)", "Fast (каждый кадр)", "Выкл", "Full (синхронный, медленно)"}),
+            new Option("gpu_cap_msaa", "Срезать MSAA основной сцены", "gpu_cap_msaa", "true",
+                    new String[] {"true", "false"},
+                    new String[] {"Вкл (быстрее, EDRAM-тени целы)", "Выкл (родной MSAA)"}),
             new Option("native_msaa", "Нативный 2x MSAA", "native_2x_msaa", "false",
                     new String[] {"false", "true"},
                     new String[] {"Выкл (рекомендуется)", "Вкл"}),
-            new Option("gamma_unorm16", "Gamma RT как UNORM16", "gamma_render_target_as_unorm16", "true",
+            new Option("gamma_unorm16", "Gamma RT как UNORM16", "gamma_render_target_as_unorm16", "false",
+                    new String[] {"false", "true"},
+                    new String[] {"Выкл (sRGB, фикс блума)", "Вкл (UNORM16)"}),
+            new Option("dyn_rendering", "Vulkan Dynamic Rendering", "vulkan_dynamic_rendering", "false",
+                    new String[] {"false", "true"},
+                    new String[] {"Выкл (VkRenderPass, стабильнее)", "Вкл (по умолчанию SDK)"}),
+            new Option("tex_3d_to_2d", "3D-текстуры как 2D", "gpu_3d_to_2d_texture", "true",
                     new String[] {"true", "false"},
-                    new String[] {"Вкл (по умолчанию)", "Выкл (sRGB)"}),
+                    new String[] {"Вкл (по умолчанию)", "Выкл"}),
+            new Option("non_seamless_cube", "Non-seamless Cubemap", "non_seamless_cube_map", "false",
+                    new String[] {"false", "true"},
+                    new String[] {"Выкл", "Вкл"}),
             new Option("native_shader_feat", "Нативные фичи шейдеров Vulkan", "vulkan_native_shader_features", "false",
                     new String[] {"false", "true"},
                     new String[] {"Выкл (совместимость)", "Вкл"}),
     };
 
     private static final String PREFS = "f1_2012_game";
+    private static final String DEFAULTS_VERSION_KEY = "defaults_version";
+    private static final int DEFAULTS_VERSION = 2;
 
     private GameOptions() {
     }
 
     static SharedPreferences prefs(Context context) {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        SharedPreferences p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        if (p.getInt(DEFAULTS_VERSION_KEY, 0) < DEFAULTS_VERSION) {
+            p.edit()
+                    .putString("gamma_unorm16", "false")
+                    .putString("readback_resolve", "some")
+                    .putString("dyn_rendering", "false")
+                    .putString("gpu_cap_msaa", "true")
+                    .putInt(DEFAULTS_VERSION_KEY, DEFAULTS_VERSION)
+                    .apply();
+        }
+        return p;
     }
 
     static Option find(String key) {

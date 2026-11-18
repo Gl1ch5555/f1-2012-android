@@ -165,6 +165,7 @@ public final class MainActivity extends Activity {
     private static final int ACCENT = 0xFFE10600;
     private LinearLayout checksList;
     private LinearLayout optionsList;
+    private LinearLayout systemList;
     private LinearLayout shaderPanel;
     private ProgressBar shaderProgress;
     private TextView shaderText;
@@ -174,59 +175,146 @@ public final class MainActivity extends Activity {
     private Button settingsButton;
     private AlertDialog settingsDialog;
 
+    private View tabHome;
+    private View tabGraphics;
+    private View tabSystem;
+    private Button[] navTabs;
+    private TextView driverChip;
+    private int activeTab = 0;
+
     private View buildScreen() {
         FrameLayout screen = new FrameLayout(this);
-        screen.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[] {0xFF0A0C12, 0xFF151A26, 0xFF080A0E}));
+        screen.addView(new F1BackdropView(this), new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
         View topStripe = new View(this);
         topStripe.setBackgroundColor(ACCENT);
         screen.addView(topStripe, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, dp(3), Gravity.TOP));
 
-        LinearLayout columns = new LinearLayout(this);
-        columns.setOrientation(LinearLayout.HORIZONTAL);
-        columns.setPadding(dp(28), dp(20), dp(28), dp(18));
-        screen.addView(columns, new FrameLayout.LayoutParams(
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(dp(22), dp(14), dp(22), dp(14));
+        screen.addView(root, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
 
-        // Left: F1 2020 style branding + Settings trigger.
+        // ---- Top Paddock Bar ----
+        LinearLayout topBar = new LinearLayout(this);
+        topBar.setOrientation(LinearLayout.HORIZONTAL);
+        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams topBarLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        topBarLp.bottomMargin = dp(12);
+        root.addView(topBar, topBarLp);
+
+        LinearLayout brandBox = new LinearLayout(this);
+        brandBox.setOrientation(LinearLayout.HORIZONTAL);
+        brandBox.setGravity(Gravity.CENTER_VERTICAL);
+        TextView badge = label("F1 2012", 13, Color.WHITE, true);
+        badge.setPadding(dp(10), dp(4), dp(10), dp(4));
+        GradientDrawable badgeBg = new GradientDrawable();
+        badgeBg.setColor(ACCENT);
+        badgeBg.setCornerRadius(dp(6));
+        badge.setBackground(badgeBg);
+        brandBox.addView(badge);
+
+        TextView verLabel = label("  XBOX 360 RECOMP  •  v" + ReleaseUpdates.installed(this), 11, 0xBBFFFFFF, true);
+        brandBox.addView(verLabel);
+        topBar.addView(brandBox, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        LinearLayout tabStrip = new LinearLayout(this);
+        tabStrip.setOrientation(LinearLayout.HORIZONTAL);
+        tabStrip.setPadding(dp(4), dp(4), dp(4), dp(4));
+        GradientDrawable stripBg = new GradientDrawable();
+        stripBg.setColor(0x990D111A);
+        stripBg.setCornerRadius(dp(12));
+        stripBg.setStroke(dp(1), 0x28FFFFFF);
+        tabStrip.setBackground(stripBg);
+
+        String[] tabNames = {"ГЛАВНАЯ", "ГРАФИКА", "СИСТЕМА"};
+        navTabs = new Button[tabNames.length];
+        for (int i = 0; i < tabNames.length; i++) {
+            final int idx = i;
+            Button tab = new Button(this);
+            tab.setText(tabNames[i]);
+            tab.setAllCaps(false);
+            tab.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            tab.setTypeface(Typeface.DEFAULT_BOLD);
+            tab.setLetterSpacing(.08f);
+            tab.setPadding(dp(16), dp(6), dp(16), dp(6));
+            tab.setMinHeight(0);
+            tab.setMinimumHeight(0);
+            tab.setStateListAnimator(null);
+            tab.setOnClickListener(v -> switchTab(idx));
+            navTabs[i] = tab;
+            LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, dp(34));
+            if (i > 0) tp.leftMargin = dp(4);
+            tabStrip.addView(tab, tp);
+        }
+        topBar.addView(tabStrip);
+
+        // ---- Tab Host ----
+        FrameLayout tabHost = new FrameLayout(this);
+        root.addView(tabHost, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
+
+        // 1) HOME TAB
+        LinearLayout columns = new LinearLayout(this);
+        columns.setOrientation(LinearLayout.HORIZONTAL);
+        columns.setGravity(Gravity.CENTER_VERTICAL);
+        tabHome = columns;
+        tabHost.addView(tabHome, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
         left.setGravity(Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL);
-        columns.addView(left, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1.05f));
+        columns.addView(left, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 0.95f));
 
         ImageView logo = new ImageView(this);
         logo.setImageResource(R.drawable.banner);
         logo.setAdjustViewBounds(true);
         logo.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        left.addView(logo, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(136)));
+        left.addView(logo, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(138)));
 
         TextView subtitle = label("FORMULA 1 • 2012 SEASON • EGO 2.0 • ARM64", 11, 0xAAFFFFFF, true);
         subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, dp(10), 0, dp(14));
+        subtitle.setPadding(0, dp(8), 0, dp(12));
         left.addView(subtitle, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        settingsButton = actionButton("НАСТРОЙКИ И ДРАЙВЕРЫ", false);
-        settingsButton.setOnClickListener(view -> openSettingsDialog());
-        left.addView(settingsButton, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(48)));
+        LinearLayout chipsCard = card();
+        chipsCard.setPadding(dp(14), dp(10), dp(14), dp(10));
+        driverChip = label("Драйвер Vulkan: Системный", 12, 0xEEFFFFFF, true);
+        chipsCard.addView(driverChip);
+        TextView deviceChip = label(Build.MANUFACTURER.toUpperCase() + " " + Build.MODEL
+                + "  •  Android " + Build.VERSION.RELEASE, 11, 0x99FFFFFF, false);
+        deviceChip.setPadding(0, dp(4), 0, 0);
+        chipsCard.addView(deviceChip);
+        left.addView(chipsCard, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        // Right: Play / Direct Download card (clean F1 2020 hub).
+        settingsButton = actionButton("НАСТРОЙКИ ГРАФИКИ И ДРАЙВЕРА", false);
+        settingsButton.setOnClickListener(view -> switchTab(1));
+        LinearLayout.LayoutParams sbLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(42));
+        sbLp.topMargin = dp(10);
+        left.addView(settingsButton, sbLp);
+
         LinearLayout right = new LinearLayout(this);
         right.setOrientation(LinearLayout.VERTICAL);
         right.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.MATCH_PARENT, 1f);
-        rightParams.leftMargin = dp(24);
+                0, LinearLayout.LayoutParams.MATCH_PARENT, 1.05f);
+        rightParams.leftMargin = dp(22);
         columns.addView(right, rightParams);
 
         LinearLayout card = card();
         right.addView(card, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-        card.addView(label("ДАННЫЕ ИГРЫ • 434D0847", 12, ACCENT, true));
-        importStatus = label("", 13, 0xDDFFFFFF, false);
+        card.addView(label("ДАННЫЕ ИГРЫ • TITLE ID 434D0847", 11, 0xFFFF5247, true));
+        importStatus = label("", 13, 0xEEFFFFFF, false);
         importStatus.setPadding(0, dp(6), 0, dp(6));
         card.addView(importStatus);
         checksList = new LinearLayout(this);
@@ -248,7 +336,7 @@ public final class MainActivity extends Activity {
         cancelDownload.setVisibility(View.GONE);
         cancelDownload.setOnClickListener(view -> DownloadService.cancel(this));
         LinearLayout.LayoutParams cancelParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(40));
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(38));
         cancelParams.topMargin = dp(8);
         shaderPanel.addView(cancelDownload, cancelParams);
         card.addView(shaderPanel);
@@ -257,8 +345,8 @@ public final class MainActivity extends Activity {
         launchGame.setVisibility(View.GONE);
         launchGame.setOnClickListener(view -> play());
         LinearLayout.LayoutParams playParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(60));
-        playParams.topMargin = dp(14);
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(58));
+        playParams.topMargin = dp(12);
         right.addView(launchGame, playParams);
 
         downloadGame = actionButton(
@@ -268,58 +356,74 @@ public final class MainActivity extends Activity {
                 true);
         downloadGame.setOnClickListener(view -> promptOrStartDownload());
         LinearLayout.LayoutParams dlParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(56));
-        dlParams.topMargin = dp(14);
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(54));
+        dlParams.topMargin = dp(12);
         right.addView(downloadGame, dlParams);
 
-        selectFolder = actionButton("Выбрать папку с игрой", false);
+        LinearLayout fileButtonsRow = new LinearLayout(this);
+        fileButtonsRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams fbrLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        fbrLp.topMargin = dp(10);
+        right.addView(fileButtonsRow, fbrLp);
+
+        selectFolder = actionButton("Папка с игрой", false);
         selectFolder.setOnClickListener(view -> selectGameFolder());
-        LinearLayout.LayoutParams folderParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
-        folderParams.topMargin = dp(10);
-        right.addView(selectFolder, folderParams);
+        LinearLayout.LayoutParams folderParams = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        fileButtonsRow.addView(selectFolder, folderParams);
 
-        Button selectArchive = actionButton("Выбрать архив / ISO с телефона", false);
+        Button selectArchive = actionButton("Архив / ISO", false);
         selectArchive.setOnClickListener(view -> selectLocalArchive());
-        LinearLayout.LayoutParams archiveParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(46));
-        archiveParams.topMargin = dp(8);
-        right.addView(selectArchive, archiveParams);
+        LinearLayout.LayoutParams archiveParams = new LinearLayout.LayoutParams(0, dp(44), 1f);
+        archiveParams.leftMargin = dp(10);
+        fileButtonsRow.addView(selectArchive, archiveParams);
 
+        // 2) GRAPHICS TAB
+        ScrollView graphicsScroll = new ScrollView(this);
         optionsList = new LinearLayout(this);
         optionsList.setOrientation(LinearLayout.VERTICAL);
+        optionsList.setPadding(0, dp(2), 0, dp(12));
+        graphicsScroll.addView(optionsList);
+        tabGraphics = graphicsScroll;
+        tabHost.addView(tabGraphics, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+        // 3) SYSTEM TAB
+        ScrollView systemScroll = new ScrollView(this);
+        systemList = new LinearLayout(this);
+        systemList.setOrientation(LinearLayout.VERTICAL);
+        systemList.setPadding(0, dp(2), 0, dp(12));
+        systemScroll.addView(systemList);
+        tabSystem = systemScroll;
+        tabHost.addView(tabSystem, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
         sendReport = actionButton("Логи и диагностика", false);
         sendReport.setOnClickListener(view -> chooseReportDestination());
         refreshOptions();
+        switchTab(0);
         return screen;
     }
 
+    private void switchTab(int index) {
+        activeTab = index;
+        if (tabHome != null) tabHome.setVisibility(index == 0 ? View.VISIBLE : View.GONE);
+        if (tabGraphics != null) tabGraphics.setVisibility(index == 1 ? View.VISIBLE : View.GONE);
+        if (tabSystem != null) tabSystem.setVisibility(index == 2 ? View.VISIBLE : View.GONE);
+        if (navTabs != null) {
+            for (int i = 0; i < navTabs.length; i++) {
+                boolean active = (i == index);
+                GradientDrawable bg = new GradientDrawable();
+                bg.setColor(active ? ACCENT : 0x00000000);
+                bg.setCornerRadius(dp(9));
+                navTabs[i].setBackground(bg);
+                navTabs[i].setTextColor(active ? Color.WHITE : 0x99FFFFFF);
+            }
+        }
+    }
+
     private void openSettingsDialog() {
-        refreshOptions();
-        LinearLayout container = new LinearLayout(this);
-        container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(dp(16), dp(12), dp(16), dp(12));
-        container.setBackgroundColor(0xFF121620);
-
-        if (optionsList.getParent() instanceof android.view.ViewGroup) {
-            ((android.view.ViewGroup) optionsList.getParent()).removeView(optionsList);
-        }
-        if (sendReport.getParent() instanceof android.view.ViewGroup) {
-            ((android.view.ViewGroup) sendReport.getParent()).removeView(sendReport);
-        }
-
-        ScrollView scroll = new ScrollView(this);
-        scroll.addView(optionsList);
-        container.addView(scroll, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(190)));
-
-        settingsDialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Настройки F1 2012")
-                .setView(container)
-                .setNeutralButton("Логи и диагностика", (d, w) -> chooseReportDestination())
-                .setPositiveButton("Закрыть", null)
-                .create();
-        settingsDialog.show();
+        switchTab(1);
     }
 
     private void promptOrStartDownload() {
@@ -760,20 +864,17 @@ public final class MainActivity extends Activity {
     }
 
     private void refreshOptions() {
-        optionsList.removeAllViews();
-        optionsList.addView(optionRow("Сохранения", "Экспорт, импорт и резервная копия", () -> launcherSaves.menu()));
-        optionsList.addView(optionRow("Профиль графики", profileLabel(), this::chooseProfile));
         GpuDrivers.Driver driver = GpuDrivers.selected(this);
-        optionsList.addView(optionRow("Драйвер Vulkan", driver == null ? "Системный" : driver.name,
-                this::chooseDriver));
-        optionsList.addView(optionRow("Тест драйвера", "Проверить GPU и функции Vulkan", () -> probeDriver(false)));
-        optionsList.addView(optionRow("Обновления",
-                checkingUpdates ? "Проверка GitHub…" : "Версия " + ReleaseUpdates.installed(this),
-                () -> checkUpdates(true)));
-        for (GameOptions.Option option : GameOptions.ALL) {
-            String value = GameOptions.get(this, option.key);
-            optionsList.addView(optionRow(option.title, option.label(value), () -> chooseOption(option)));
+        String driverName = driver == null ? "Системный" : driver.name;
+        if (driverChip != null) {
+            driverChip.setText("Драйвер Vulkan: " + driverName);
         }
+
+        optionsList.removeAllViews();
+        optionsList.addView(label("ГРАФИКА И ДРАЙВЕР VULKAN", 11, 0xFFFF5247, true));
+        optionsList.addView(optionRow("Профиль графики", profileLabel(), this::chooseProfile));
+        optionsList.addView(optionRow("Драйвер Vulkan", driverName, this::chooseDriver));
+        optionsList.addView(optionRow("Тест драйвера", "Проверить GPU и функции Vulkan", () -> probeDriver(false)));
         SharedPreferences controls = getSharedPreferences("nfsmw_controls", MODE_PRIVATE);
         boolean stretch = controls.getBoolean("stretch", true);
         optionsList.addView(optionRow("Формат экрана",
@@ -781,6 +882,25 @@ public final class MainActivity extends Activity {
                     controls.edit().putBoolean("stretch", !stretch).apply();
                     refreshOptions();
                 }));
+        for (GameOptions.Option option : GameOptions.ALL) {
+            String value = GameOptions.get(this, option.key);
+            optionsList.addView(optionRow(option.title, option.label(value), () -> chooseOption(option)));
+        }
+
+        if (systemList != null) {
+            systemList.removeAllViews();
+            systemList.addView(label("СОХРАНЕНИЯ И ДИАГНОСТИКА", 11, 0xFFFF5247, true));
+            systemList.addView(optionRow("Сохранения", "Экспорт, импорт и резервная копия", () -> launcherSaves.menu()));
+            systemList.addView(optionRow("Логи и диагностика", "Собрать ZIP с логами и настройками", this::chooseReportDestination));
+            systemList.addView(optionRow("Обновления",
+                    checkingUpdates ? "Проверка GitHub…" : "Версия " + ReleaseUpdates.installed(this),
+                    () -> checkUpdates(true)));
+            systemList.addView(optionRow("Сбросить настройки графики", "Вернуть рекомендованные значения", () -> {
+                GameOptions.prefs(this).edit().clear().apply();
+                refreshOptions();
+                setImportStatus("Настройки графики сброшены на рекомендованные.");
+            }));
+        }
     }
 
     // ---- LAN multiplayer -----------------------------------------------------------------------------------
@@ -1071,18 +1191,18 @@ public final class MainActivity extends Activity {
         Button b = new Button(this);
         b.setText(text);
         b.setAllCaps(false);
-        b.setTextColor(primary ? 0xFF1A1000 : Color.WHITE);
-        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, primary ? 22 : 15);
+        b.setTextColor(Color.WHITE);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, primary ? 19 : 14);
         b.setTypeface(Typeface.DEFAULT_BOLD);
-        b.setLetterSpacing(primary ? .12f : 0f);
+        b.setLetterSpacing(primary ? .10f : .02f);
         GradientDrawable bg = primary
-                ? new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[] {0xFFFFB300, ACCENT})
+                ? new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, new int[] {0xFFE10600, 0xFF9E0400})
                 : new GradientDrawable();
         if (!primary) {
-            bg.setColor(0x22FFFFFF);
-            bg.setStroke(dp(1), 0x55FFFFFF);
+            bg.setColor(0x20FFFFFF);
+            bg.setStroke(dp(1), 0x3DFFFFFF);
         }
-        bg.setCornerRadius(dp(14));
+        bg.setCornerRadius(dp(12));
         b.setBackground(bg);
         b.setStateListAnimator(null);
         return b;

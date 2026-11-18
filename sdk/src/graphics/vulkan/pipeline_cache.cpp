@@ -438,6 +438,8 @@ void VulkanPipelineCache::InitializeShaderStorage(const std::filesystem::path& c
         rex::path_to_utf8(pipeline_storage_file_path));
     return;
   }
+  // Android bionic fopen("a+b") positions at EOF; seek to start so the header is read.
+  rex::filesystem::Seek(pipeline_storage_file_, 0, SEEK_SET);
   pipeline_storage_file_flush_needed_ = false;
   // 'XEPS'.
   const uint32_t pipeline_storage_magic = 0x53504558;
@@ -523,6 +525,7 @@ void VulkanPipelineCache::InitializeShaderStorage(const std::filesystem::path& c
     pipeline_storage_file_ = nullptr;
     return;
   }
+  rex::filesystem::Seek(shader_storage_file_, 0, SEEK_SET);
   ++shader_storage_index_;
   shader_storage_file_flush_needed_ = false;
   struct {

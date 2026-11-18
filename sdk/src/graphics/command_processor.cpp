@@ -80,6 +80,11 @@ REXCVAR_DEFINE_BOOL(async_shader_compilation, true, "GPU",
                     "pipelines are being prepared.")
     .lifecycle(rex::cvar::Lifecycle::kHotReload);
 
+REXCVAR_DEFINE_BOOL(gpu_cap_msaa, true, "GPU",
+                    "Cap MSAA to 1x on wide render targets (pitch >= 1024) while preserving "
+                    "half-pitch 4x MSAA EDRAM clears for shadows and depth pre-pass.")
+    .lifecycle(rex::cvar::Lifecycle::kHotReload);
+
 namespace rex::graphics {
 
 using namespace rex::graphics::xenos;
@@ -363,6 +368,15 @@ void CommandProcessor::WriteRegister(uint32_t index, uint32_t value) {
           index);
     }
     return;
+  }
+
+  // Cap MSAA to 1x on main render targets (pitch >= 1024) while preserving
+  // half-pitch 4x MSAA EDRAM clears used for shadow maps and depth pre-pass.
+  if (index == XE_GPU_REG_RB_SURFACE_INFO && REXCVAR_GET(gpu_cap_msaa)) {
+    constexpr uint32_t kMsaaCapMinPitch = 1024;
+    if ((value & 0x3FFFu) >= kMsaaCapMinPitch) {
+      value &= ~(UINT32_C(3) << 16);
+    }
   }
 
   // Volatile for the WAIT_REG_MEM loop.
